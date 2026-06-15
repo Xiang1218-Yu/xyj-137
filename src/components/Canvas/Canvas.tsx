@@ -4,9 +4,10 @@ import { useCanvasStore } from '@/hooks/useCanvasStore';
 
 interface CanvasProps {
   canvasRef: React.RefObject<HTMLDivElement | null>;
+  exportCanvasRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export function Canvas({ canvasRef }: CanvasProps) {
+export function Canvas({ canvasRef, exportCanvasRef }: CanvasProps) {
   const { emojis, selectedId, selectEmoji, canvasSize } = useCanvasStore();
 
   const handleCanvasClick = (e: React.MouseEvent) => {
@@ -16,8 +17,8 @@ export function Canvas({ canvasRef }: CanvasProps) {
   };
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="relative">
+    <div className="flex flex-col items-center gap-4 w-full">
+      <div className="relative p-8">
         <div
           ref={canvasRef}
           onClick={handleCanvasClick}
@@ -36,7 +37,7 @@ export function Canvas({ canvasRef }: CanvasProps) {
           }}
         >
           <div 
-            className="absolute inset-0 opacity-30"
+            className="absolute inset-0 opacity-30 pointer-events-none"
             style={{
               backgroundImage: `
                 linear-gradient(rgba(168, 85, 247, 0.1) 1px, transparent 1px),
@@ -65,7 +66,38 @@ export function Canvas({ canvasRef }: CanvasProps) {
           )}
         </div>
         
-        <div className="absolute -inset-4 bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200 rounded-[3rem] opacity-30 blur-xl -z-10" />
+        <div 
+          ref={exportCanvasRef}
+          className="fixed left-[-9999px] top-[-9999px] pointer-events-none"
+          style={{
+            width: canvasSize.width,
+            height: canvasSize.height,
+            backgroundColor: 'transparent',
+          }}
+        >
+          {emojis.map((item) => (
+            <div
+              key={item.id}
+              className="absolute"
+              style={{
+                left: item.x,
+                top: item.y,
+                width: 80 * item.scale,
+                height: 80 * item.scale,
+                zIndex: item.zIndex,
+                transform: `rotate(${item.rotation}deg)`,
+                fontSize: 80 * item.scale * 0.8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {item.emoji}
+            </div>
+          ))}
+        </div>
+        
+        <div className="absolute inset-0 bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200 rounded-[3rem] opacity-30 blur-xl -z-10" />
       </div>
       
       <div className="text-center">

@@ -13,9 +13,10 @@ import { exportAsPng, copyImageToClipboard, downloadImage } from '@/utils/export
 
 interface ToolbarProps {
   canvasRef: React.RefObject<HTMLDivElement | null>;
+  exportCanvasRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export function Toolbar({ canvasRef }: ToolbarProps) {
+export function Toolbar({ canvasRef, exportCanvasRef }: ToolbarProps) {
   const { emojis, clearCanvas, undo, redo, historyIndex, history } = useCanvasStore();
   const [copySuccess, setCopySuccess] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -24,12 +25,18 @@ export function Toolbar({ canvasRef }: ToolbarProps) {
   const canRedo = historyIndex < history.length - 1;
   const hasEmojis = emojis.length > 0;
 
+  const getExportElement = (): HTMLElement | null => {
+    if (exportCanvasRef?.current) return exportCanvasRef.current;
+    return canvasRef.current;
+  };
+
   const handleCopy = async () => {
-    if (!canvasRef.current || !hasEmojis) return;
+    const exportElement = getExportElement();
+    if (!exportElement || !hasEmojis) return;
     
     setIsExporting(true);
     try {
-      const dataUrl = await exportAsPng(canvasRef.current);
+      const dataUrl = await exportAsPng(exportElement);
       const success = await copyImageToClipboard(dataUrl);
       
       if (success) {
@@ -44,11 +51,12 @@ export function Toolbar({ canvasRef }: ToolbarProps) {
   };
 
   const handleDownload = async () => {
-    if (!canvasRef.current || !hasEmojis) return;
+    const exportElement = getExportElement();
+    if (!exportElement || !hasEmojis) return;
     
     setIsExporting(true);
     try {
-      const dataUrl = await exportAsPng(canvasRef.current);
+      const dataUrl = await exportAsPng(exportElement);
       downloadImage(dataUrl, `emoji-combo-${Date.now()}.png`);
     } catch (error) {
       console.error('Download failed:', error);

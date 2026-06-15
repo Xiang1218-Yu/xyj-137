@@ -6,6 +6,7 @@ export async function exportAsPng(element: HTMLElement): Promise<string> {
       quality: 1,
       pixelRatio: 2,
       cacheBust: true,
+      backgroundColor: 'transparent',
     });
     return dataUrl;
   } catch (error) {

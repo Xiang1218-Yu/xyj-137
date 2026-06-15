@@ -7,6 +7,7 @@ import { useCanvasStore } from '@/hooks/useCanvasStore';
 
 export default function Home() {
   const canvasRef = useRef<HTMLDivElement>(null);
+  const exportCanvasRef = useRef<HTMLDivElement>(null);
   const undo = useCanvasStore(state => state.undo);
   const redo = useCanvasStore(state => state.redo);
   const selectedId = useCanvasStore(state => state.selectedId);
@@ -39,7 +40,7 @@ export default function Home() {
   }, [undo, redo, selectedId, removeEmoji]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 flex flex-col">
       <div 
         className="absolute inset-0 opacity-40 pointer-events-none"
         style={{
@@ -51,8 +52,8 @@ export default function Home() {
         }}
       />
 
-      <div className="relative z-10 min-h-screen flex flex-col">
-        <header className="py-6 px-8">
+      <div className="relative z-10 flex flex-col h-screen overflow-hidden">
+        <header className="py-6 px-8 flex-shrink-0">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-pink-400 via-purple-400 to-blue-400 flex items-center justify-center text-2xl shadow-lg">
@@ -74,30 +75,30 @@ export default function Home() {
           </div>
         </header>
 
-        <main className="flex-1 px-8 pb-8">
+        <main className="flex-1 min-h-0 px-8">
           <div className="max-w-7xl mx-auto h-full">
-            <div className="grid grid-cols-12 gap-6 h-[calc(100vh-180px)]">
-              <div className="col-span-3 h-full">
+            <div className="grid grid-cols-12 gap-6 h-full">
+              <div className="col-span-3 h-full min-h-0">
                 <EmojiPicker />
               </div>
 
-              <div className="col-span-6 flex flex-col">
-                <div className="flex-1 flex items-center justify-center">
-                  <Canvas canvasRef={canvasRef} />
+              <div className="col-span-6 flex flex-col h-full min-h-0">
+                <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+                  <Canvas canvasRef={canvasRef} exportCanvasRef={exportCanvasRef} />
                 </div>
-                <div className="mt-6">
-                  <Toolbar canvasRef={canvasRef} />
+                <div className="mt-6 flex-shrink-0">
+                  <Toolbar canvasRef={canvasRef} exportCanvasRef={exportCanvasRef} />
                 </div>
               </div>
 
-              <div className="col-span-3 h-full">
+              <div className="col-span-3 h-full min-h-0">
                 <ControlPanel />
               </div>
             </div>
           </div>
         </main>
 
-        <footer className="py-4 px-8 text-center text-sm text-gray-400">
+        <footer className="py-4 px-8 text-center text-sm text-gray-400 flex-shrink-0">
           <p>🎨 尽情发挥创意，制作属于你的专属表情</p>
         </footer>
       </div>
