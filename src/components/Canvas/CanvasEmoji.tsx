@@ -33,6 +33,8 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
     e.stopPropagation();
     selectItem(item.id);
     
+    if (item.locked) return;
+    
     const rect = emojiRef.current?.getBoundingClientRect();
     if (!rect) return;
     
@@ -43,11 +45,13 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
       itemX: item.x,
       itemY: item.y,
     };
-  }, [item.id, item.x, item.y, selectItem]);
+  }, [item.id, item.x, item.y, item.locked, selectItem]);
 
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    
+    if (item.locked) return;
     
     const rect = emojiRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -63,11 +67,13 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
       scale: item.scale,
       distance: startDistance,
     };
-  }, [item.scale]);
+  }, [item.scale, item.locked]);
 
   const handleRotateStart = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    
+    if (item.locked) return;
     
     const rect = emojiRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -81,7 +87,7 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
       angle: startAngle,
       rotation: item.rotation,
     };
-  }, [item.rotation]);
+  }, [item.rotation, item.locked]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -144,6 +150,7 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (!isSelected) return;
+    if (item.locked) return;
     
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
@@ -164,7 +171,7 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
       e.preventDefault();
       updateItem(item.id, { x: item.x + moveAmount });
     }
-  }, [isSelected, item.id, item.x, item.y, updateItem, removeItem]);
+  }, [isSelected, item.id, item.x, item.y, item.locked, updateItem, removeItem]);
 
   const size = EMOJI_SIZE * item.scale;
 
@@ -175,7 +182,8 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
       onMouseDown={handleMouseDown}
       onKeyDown={handleKeyDown}
       className={cn(
-        "absolute cursor-move select-none focus:outline-none",
+        "absolute select-none focus:outline-none",
+        item.locked ? "cursor-not-allowed" : "cursor-move",
         isSelected && "z-50"
       )}
       style={{
@@ -191,14 +199,22 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
         className={cn(
           "w-full h-full flex items-center justify-center transition-all duration-75",
           isDragging && "drop-shadow-2xl",
-          isNew && "animate-bounce-in"
+          isNew && "animate-bounce-in",
+          item.locked && "opacity-90"
         )}
         style={{ fontSize: size * 0.8 }}
       >
         {item.emoji}
+        {item.locked && (
+          <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center shadow-md border-2 border-white">
+            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+        )}
       </div>
       
-      {isSelected && (
+      {isSelected && !item.locked && (
         <>
           <div className="absolute inset-0 border-2 border-dashed border-purple-400 rounded-lg pointer-events-none animate-pulse" />
           
@@ -214,6 +230,10 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
             <div className="absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-3 bg-purple-400" />
           </div>
         </>
+      )}
+
+      {isSelected && item.locked && (
+        <div className="absolute inset-0 border-2 border-dashed border-blue-400 rounded-lg pointer-events-none animate-pulse opacity-60" />
       )}
     </div>
   );

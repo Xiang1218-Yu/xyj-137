@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { 
   Move, 
   ZoomIn, 
@@ -19,6 +18,8 @@ import {
   Circle,
   Plus,
   Minus,
+  Unlock,
+  Lock,
 } from 'lucide-react';
 import { 
   useCanvasStore, 
@@ -46,6 +47,7 @@ interface SliderControlProps {
   onChange: (value: number) => void;
   onChangeEnd?: () => void;
   color?: string;
+  disabled?: boolean;
 }
 
 function SliderControl({ 
@@ -58,7 +60,8 @@ function SliderControl({
   unit = '', 
   onChange,
   onChangeEnd,
-  color = 'purple'
+  color = 'purple',
+  disabled = false,
 }: SliderControlProps) {
   const colorClasses: Record<string, string> = {
     purple: 'accent-purple-500',
@@ -74,9 +77,12 @@ function SliderControl({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
           {icon}
-          <span>{label}</span>
+          <span className={disabled ? 'text-gray-400' : ''}>{label}</span>
         </div>
-        <span className="text-sm font-mono bg-gray-100 px-2 py-0.5 rounded-lg text-gray-600">
+        <span className={cn(
+          "text-sm font-mono bg-gray-100 px-2 py-0.5 rounded-lg",
+          disabled ? "text-gray-400" : "text-gray-600"
+        )}>
           {Math.round(value * 10) / 10}{unit}
         </span>
       </div>
@@ -89,8 +95,10 @@ function SliderControl({
         onChange={(e) => onChange(Number(e.target.value))}
         onMouseUp={onChangeEnd}
         onTouchEnd={onChangeEnd}
+        disabled={disabled}
         className={cn(
-          "w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer",
+          "w-full h-2 bg-gray-200 rounded-lg appearance-none",
+          disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
           colorClasses[color]
         )}
       />
@@ -213,8 +221,6 @@ function BackgroundPanel() {
     updatePatternBackground,
     applyBackgroundPreset,
   } = useCanvasStore();
-
-  const [activePresetTab, setActivePresetTab] = useState<BackgroundMode>('gradient');
 
   const currentOpacity = background.opacity ?? 1;
   const updateOpacity = (opacity: number) => {
@@ -500,6 +506,10 @@ export function ControlPanel() {
     bringToFront,
     sendToBack,
     saveToHistory,
+    unlockMosaicGroup,
+    removeMosaicGroup,
+    findMosaicIdByItemId,
+    toggleLockItem,
   } = useCanvasStore();
 
   const selectedItem = items.find(e => e.id === selectedId);
@@ -508,7 +518,12 @@ export function ControlPanel() {
     return <BackgroundPanel />;
   }
 
+  const mosaicId = selectedItem.mosaicId || findMosaicIdByItemId(selectedItem.id);
+  const isLocked = selectedItem.locked || false;
+  const isMosaicItem = !!mosaicId;
+
   const handleUpdate = (key: keyof CanvasItem, value: number | string) => {
+    if (isLocked) return;
     updateItem(selectedItem.id, { [key]: value } as Partial<CanvasItem>);
   };
 
@@ -522,16 +537,22 @@ export function ControlPanel() {
           🎛️ 属性面板
         </h3>
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-2xl overflow-hidden">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-2xl overflow-hidden relative">
             {selectedItem.type === 'emoji' ? (
               (selectedItem as EmojiItem).emoji
             ) : (
               <Type className="w-6 h-6 text-purple-500" />
             )}
+            {isLocked && (
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center shadow-md border-2 border-white">
+                <Lock className="w-3 h-3 text-white" />
+              </div>
+            )}
           </div>
           <div>
             <p className="font-medium text-gray-800">
               {selectedItem.type === 'emoji' ? '表情元素' : '文字元素'}
+              {isMosaicItem && <span className="ml-1.5 text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">拼贴组</span>}
             </p>
             <p className="text-xs text-gray-500">ID: {selectedItem.id.slice(0, 6)}...</p>
           </div>
@@ -539,7 +560,50 @@ export function ControlPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        <div className="space-y-4">
+        {isMosaicItem && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-purple-500" />
+              拼贴组操作
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => mosaicId && unlockMosaicGroup(mosaicId)}
+                className={cn(
+                  "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-medium text-sm transition-all",
+                  isLocked
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                )}
+                disabled={!isLocked}
+              >
+                <Unlock className="w-4 h-4" />
+                {isLocked ? '全部解锁' : '已解锁'}
+              </button>
+              <button
+                onClick={() => mosaicId && removeMosaicGroup(mosaicId)}
+                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-medium text-sm bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                <Trash2 className="w-4 h-4" />
+                删除整组
+              </button>
+            </div>
+            <button
+              onClick={() => toggleLockItem(selectedItem.id)}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-medium text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all"
+            >
+              {isLocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+              {isLocked ? '仅解锁此元素' : '锁定此元素'}
+            </button>
+            {isLocked && (
+              <p className="text-xs text-blue-500 text-center bg-blue-50 rounded-lg py-2 px-3">
+                🔒 此元素已锁定，点击「全部解锁」或「仅解锁此元素」后可编辑
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className={cn("space-y-4", isLocked && "opacity-50 pointer-events-none")}>
           <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
             <Move className="w-4 h-4" />
             位置
@@ -555,6 +619,7 @@ export function ControlPanel() {
             onChange={(v) => handleUpdate('x', v)}
             onChangeEnd={saveToHistory}
             color="purple"
+            disabled={isLocked}
           />
           <SliderControl
             label="Y 坐标"
@@ -567,10 +632,11 @@ export function ControlPanel() {
             onChange={(v) => handleUpdate('y', v)}
             onChangeEnd={saveToHistory}
             color="pink"
+            disabled={isLocked}
           />
         </div>
 
-        <div className="space-y-4">
+        <div className={cn("space-y-4", isLocked && "opacity-50 pointer-events-none")}>
           <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
             <ZoomIn className="w-4 h-4" />
             大小与旋转
@@ -586,6 +652,7 @@ export function ControlPanel() {
             onChange={(v) => handleUpdate('scale', v)}
             onChangeEnd={saveToHistory}
             color="yellow"
+            disabled={isLocked}
           />
           <SliderControl
             label="旋转角度"
@@ -598,11 +665,12 @@ export function ControlPanel() {
             onChange={(v) => handleUpdate('rotation', v)}
             onChangeEnd={saveToHistory}
             color="blue"
+            disabled={isLocked}
           />
         </div>
 
         {isTextItem && textItem && (
-          <>
+          <div className={cn("space-y-4", isLocked && "opacity-50 pointer-events-none")}>
             <div className="space-y-4">
               <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
                 <Type className="w-4 h-4" />
@@ -621,6 +689,7 @@ export function ControlPanel() {
                     saveToHistory();
                   }}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                  disabled={isLocked}
                 >
                   {FONT_OPTIONS.map(font => (
                     <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
@@ -641,6 +710,7 @@ export function ControlPanel() {
                 onChange={(v) => updateTextStyle(selectedItem.id, { fontSize: v })}
                 onChangeEnd={saveToHistory}
                 color="green"
+                disabled={isLocked}
               />
 
               <ColorPicker
@@ -671,6 +741,7 @@ export function ControlPanel() {
                 onChange={(v) => updateTextStyle(selectedItem.id, { strokeWidth: v })}
                 onChangeEnd={saveToHistory}
                 color="orange"
+                disabled={isLocked}
               />
 
               <ColorPicker
@@ -701,6 +772,7 @@ export function ControlPanel() {
                 onChange={(v) => updateTextStyle(selectedItem.id, { shadowBlur: v })}
                 onChangeEnd={saveToHistory}
                 color="blue"
+                disabled={isLocked}
               />
 
               <SliderControl
@@ -714,6 +786,7 @@ export function ControlPanel() {
                 onChange={(v) => updateTextStyle(selectedItem.id, { shadowOffsetX: v })}
                 onChangeEnd={saveToHistory}
                 color="blue"
+                disabled={isLocked}
               />
 
               <SliderControl
@@ -727,6 +800,7 @@ export function ControlPanel() {
                 onChange={(v) => updateTextStyle(selectedItem.id, { shadowOffsetY: v })}
                 onChangeEnd={saveToHistory}
                 color="blue"
+                disabled={isLocked}
               />
 
               <ColorPicker
@@ -739,10 +813,10 @@ export function ControlPanel() {
                 }}
               />
             </div>
-          </>
+          </div>
         )}
 
-        <div className="space-y-4">
+        <div className={cn("space-y-4", isLocked && "opacity-50 pointer-events-none")}>
           <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
             <Layers className="w-4 h-4" />
             图层顺序
@@ -783,10 +857,16 @@ export function ControlPanel() {
       <div className="p-4 border-t border-gray-100">
         <button
           onClick={() => removeItem(selectedItem.id)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-400 to-pink-500 text-white rounded-xl font-medium hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className={cn(
+            "w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all",
+            isLocked 
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-gradient-to-r from-red-400 to-pink-500 text-white hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+          )}
+          disabled={isLocked}
         >
           <Trash2 className="w-5 h-5" />
-          删除元素
+          {isLocked ? '已锁定，无法删除' : '删除元素'}
         </button>
       </div>
     </div>

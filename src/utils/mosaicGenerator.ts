@@ -174,7 +174,7 @@ export function generateMosaicEmojis(options: MosaicGenerateOptions): EmojiItem[
         emoji,
         x: emojiX,
         y: emojiY,
-        scale: (emojiSize / 80) * scale,
+        scale: emojiSize / 80,
         rotation,
         zIndex: zIndex++,
       };

@@ -35,6 +35,8 @@ export function CanvasText({ item, isSelected }: CanvasTextProps) {
     e.stopPropagation();
     selectItem(item.id);
     
+    if (item.locked) return;
+    
     const rect = textRef.current?.getBoundingClientRect();
     if (!rect) return;
     
@@ -45,17 +47,20 @@ export function CanvasText({ item, isSelected }: CanvasTextProps) {
       itemX: item.x,
       itemY: item.y,
     };
-  }, [item.id, item.x, item.y, selectItem, isEditing]);
+  }, [item.id, item.x, item.y, item.locked, selectItem, isEditing]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    if (item.locked) return;
     setIsEditing(true);
     setEditText(item.text);
-  }, [item.text]);
+  }, [item.text, item.locked]);
 
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    
+    if (item.locked) return;
     
     const rect = textRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -71,11 +76,13 @@ export function CanvasText({ item, isSelected }: CanvasTextProps) {
       scale: item.scale,
       distance: startDistance,
     };
-  }, [item.scale]);
+  }, [item.scale, item.locked]);
 
   const handleRotateStart = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    
+    if (item.locked) return;
     
     const rect = textRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -89,7 +96,7 @@ export function CanvasText({ item, isSelected }: CanvasTextProps) {
       angle: startAngle,
       rotation: item.rotation,
     };
-  }, [item.rotation]);
+  }, [item.rotation, item.locked]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -185,6 +192,7 @@ export function CanvasText({ item, isSelected }: CanvasTextProps) {
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (!isSelected || isEditing) return;
+    if (item.locked) return;
     
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
@@ -205,7 +213,7 @@ export function CanvasText({ item, isSelected }: CanvasTextProps) {
       e.preventDefault();
       updateItem(item.id, { x: item.x + moveAmount });
     }
-  }, [isSelected, isEditing, item.id, item.x, item.y, updateItem, removeItem]);
+  }, [isSelected, isEditing, item.id, item.x, item.y, item.locked, updateItem, removeItem]);
 
   const { style } = item;
   const fontSize = style.fontSize * item.scale;
@@ -222,7 +230,8 @@ export function CanvasText({ item, isSelected }: CanvasTextProps) {
       onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
       className={cn(
-        "absolute cursor-move select-none focus:outline-none",
+        "absolute select-none focus:outline-none",
+        item.locked ? "cursor-not-allowed" : "cursor-move",
         isSelected && "z-50"
       )}
       style={{
@@ -234,9 +243,10 @@ export function CanvasText({ item, isSelected }: CanvasTextProps) {
     >
       <div
         className={cn(
-          "whitespace-nowrap font-bold transition-all duration-75",
+          "whitespace-nowrap font-bold transition-all duration-75 relative",
           isDragging && "drop-shadow-2xl",
-          isNew && "animate-bounce-in"
+          isNew && "animate-bounce-in",
+          item.locked && "opacity-90"
         )}
         style={{
           fontFamily: style.fontFamily,
@@ -272,9 +282,16 @@ export function CanvasText({ item, isSelected }: CanvasTextProps) {
         ) : (
           item.text
         )}
+        {item.locked && (
+          <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center shadow-md border-2 border-white">
+            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+        )}
       </div>
       
-      {isSelected && !isEditing && (
+      {isSelected && !isEditing && !item.locked && (
         <>
           <div className="absolute inset-0 border-2 border-dashed border-purple-400 rounded-lg pointer-events-none animate-pulse" />
           
@@ -290,6 +307,10 @@ export function CanvasText({ item, isSelected }: CanvasTextProps) {
             <div className="absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-3 bg-purple-400" />
           </div>
         </>
+      )}
+
+      {isSelected && item.locked && (
+        <div className="absolute inset-0 border-2 border-dashed border-blue-400 rounded-lg pointer-events-none animate-pulse opacity-60" />
       )}
     </div>
   );

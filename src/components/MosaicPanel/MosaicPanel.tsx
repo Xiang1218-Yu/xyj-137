@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Sparkles, Grid3X3, Shuffle, Palette, ZoomIn } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { Sparkles, Grid3X3, Shuffle, Palette, ZoomIn, Trash2, Unlock, RefreshCcw, Lock } from 'lucide-react';
 import { SHAPE_TEMPLATES, type ShapeType } from '@/utils/shapeTemplates';
 import { COLOR_CATEGORIES, type ColorCategory, type MosaicStyle, estimateEmojiCount } from '@/utils/mosaicGenerator';
 import { useCanvasStore } from '@/hooks/useCanvasStore';
@@ -24,7 +24,15 @@ export interface MosaicControlsProps {
 }
 
 export function MosaicControls({ onGenerate }: MosaicControlsProps) {
-  const { generateMosaic, canvasSize } = useCanvasStore();
+  const { 
+    generateMosaic, 
+    canvasSize, 
+    unlockMosaicGroup, 
+    removeMosaicGroup,
+    selectedId,
+    findMosaicIdByItemId,
+    items,
+  } = useCanvasStore();
   const [selectedShape, setSelectedShape] = useState<ShapeType>('heart');
   const [selectedColor, setSelectedColor] = useState<ColorCategory>('rainbow');
   const [selectedStyle, setSelectedStyle] = useState<MosaicStyle>('pixel');
@@ -32,17 +40,35 @@ export function MosaicControls({ onGenerate }: MosaicControlsProps) {
   const [emojiScale, setEmojiScale] = useState(0.9);
   const [rotationVariation, setRotationVariation] = useState(0);
   const [offsetVariation, setOffsetVariation] = useState(0);
+  const [clearBeforeGenerate, setClearBeforeGenerate] = useState(false);
+  const [lockAfterGenerate, setLockAfterGenerate] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [lastMosaicId, setLastMosaicId] = useState<string | null>(null);
+
+  const activeMosaicId = useMemo(() => {
+    if (lastMosaicId && items.some(e => e.mosaicId === lastMosaicId)) {
+      return lastMosaicId;
+    }
+    if (selectedId) {
+      return findMosaicIdByItemId(selectedId);
+    }
+    return null;
+  }, [lastMosaicId, selectedId, items, findMosaicIdByItemId]);
+
+  const hasLockedItems = useMemo(() => {
+    if (!activeMosaicId) return false;
+    return items.some(e => e.mosaicId === activeMosaicId && e.locked);
+  }, [activeMosaicId, items]);
 
   const estimatedCount = useMemo(() => {
     return estimateEmojiCount(selectedShape, cellSize, canvasSize.width, canvasSize.height);
   }, [selectedShape, cellSize, canvasSize]);
 
-  const handleGenerate = () => {
+  const handleGenerate = useCallback(() => {
     setIsGenerating(true);
     
     setTimeout(() => {
-      generateMosaic({
+      const newMosaicId = generateMosaic({
         shape: selectedShape,
         colorCategory: selectedColor,
         cellSize,
@@ -50,11 +76,27 @@ export function MosaicControls({ onGenerate }: MosaicControlsProps) {
         emojiScale,
         rotationVariation,
         offsetVariation,
+        locked: lockAfterGenerate,
+        clearBeforeGenerate,
       });
+      setLastMosaicId(newMosaicId);
       setIsGenerating(false);
       onGenerate?.();
     }, 50);
-  };
+  }, [selectedShape, selectedColor, cellSize, selectedStyle, emojiScale, rotationVariation, offsetVariation, lockAfterGenerate, clearBeforeGenerate, generateMosaic, onGenerate]);
+
+  const handleUnlock = useCallback(() => {
+    if (activeMosaicId) {
+      unlockMosaicGroup(activeMosaicId);
+    }
+  }, [activeMosaicId, unlockMosaicGroup]);
+
+  const handleRemove = useCallback(() => {
+    if (activeMosaicId) {
+      removeMosaicGroup(activeMosaicId);
+      setLastMosaicId(null);
+    }
+  }, [activeMosaicId, removeMosaicGroup]);
 
   return (
     <div className="flex flex-col h-full">
@@ -191,6 +233,57 @@ export function MosaicControls({ onGenerate }: MosaicControlsProps) {
           </div>
         </div>
 
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+            <RefreshCcw className="w-4 h-4 text-gray-500" />
+            生成选项
+          </h4>
+          
+          <div className="space-y-3">
+            <label className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl cursor-pointer hover:from-gray-100 hover:to-gray-200 transition-all">
+              <div className="flex items-center gap-2">
+                <RefreshCcw className="w-4 h-4 text-orange-500" />
+                <span className="text-sm text-gray-700">生成前清空画布</span>
+              </div>
+              <div 
+                onClick={() => setClearBeforeGenerate(!clearBeforeGenerate)}
+                className={cn(
+                  "w-11 h-6 rounded-full transition-all relative",
+                  clearBeforeGenerate ? "bg-gradient-to-r from-orange-400 to-red-500" : "bg-gray-300"
+                )}
+              >
+                <div 
+                  className={cn(
+                    "absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-200",
+                    clearBeforeGenerate ? "left-[22px]" : "left-0.5"
+                  )}
+                />
+              </div>
+            </label>
+
+            <label className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl cursor-pointer hover:from-gray-100 hover:to-gray-200 transition-all">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-blue-500" />
+                <span className="text-sm text-gray-700">生成后锁定拼贴元素</span>
+              </div>
+              <div 
+                onClick={() => setLockAfterGenerate(!lockAfterGenerate)}
+                className={cn(
+                  "w-11 h-6 rounded-full transition-all relative",
+                  lockAfterGenerate ? "bg-gradient-to-r from-blue-400 to-indigo-500" : "bg-gray-300"
+                )}
+              >
+                <div 
+                  className={cn(
+                    "absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-200",
+                    lockAfterGenerate ? "left-[22px]" : "left-0.5"
+                  )}
+                />
+              </div>
+            </label>
+          </div>
+        </div>
+
         {selectedStyle === 'random' && (
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
@@ -242,6 +335,40 @@ export function MosaicControls({ onGenerate }: MosaicControlsProps) {
             </div>
           </div>
         </div>
+
+        {activeMosaicId && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-purple-500" />
+              拼贴组操作
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleUnlock}
+                className={cn(
+                  "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-medium text-sm transition-all",
+                  hasLockedItems
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                )}
+                disabled={!hasLockedItems}
+              >
+                <Unlock className="w-4 h-4" />
+                {hasLockedItems ? '全部解锁' : '已解锁'}
+              </button>
+              <button
+                onClick={handleRemove}
+                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-medium text-sm bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                <Trash2 className="w-4 h-4" />
+                删除整组
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 text-center">
+              {hasLockedItems ? '点击「全部解锁」后可自由调整每个表情' : '可以自由拖动和调整每个表情'}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="pt-4 mt-2">

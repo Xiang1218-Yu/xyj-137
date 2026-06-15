@@ -15,6 +15,8 @@ export interface BaseCanvasItem {
   scale: number;
   rotation: number;
   zIndex: number;
+  locked?: boolean;
+  mosaicId?: string;
 }
 
 export interface EmojiItem extends BaseCanvasItem {
@@ -270,7 +272,14 @@ interface CanvasState {
     emojiScale?: number;
     rotationVariation?: number;
     offsetVariation?: number;
-  }) => void;
+    locked?: boolean;
+    clearBeforeGenerate?: boolean;
+  }) => string;
+  toggleLockItem: (id: string) => void;
+  unlockMosaicGroup: (mosaicId: string) => void;
+  removeMosaicGroup: (mosaicId: string) => void;
+  findMosaicIdByItemId: (itemId: string) => string | null;
+  hasLockedItems: () => boolean;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -550,7 +559,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   generateMosaic: (options) => {
     const { canvasSize } = get();
-    
+    const mosaicId = generateId();
+    const locked = options.locked ?? true;
+    const clearBeforeGenerate = options.clearBeforeGenerate ?? false;
+
     const mosaicItems = generateMosaicEmojis({
       ...options,
       canvasWidth: canvasSize.width,
@@ -558,13 +570,16 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     });
 
     set(state => {
-      const maxZ = state.items.length > 0 ? Math.max(...state.items.map(e => e.zIndex)) : 0;
+      const baseItems = clearBeforeGenerate ? [] : state.items;
+      const maxZ = baseItems.length > 0 ? Math.max(...baseItems.map(e => e.zIndex)) : 0;
       const adjustedItems = mosaicItems.map((item, index) => ({
         ...item,
         zIndex: maxZ + 1 + index,
+        locked,
+        mosaicId,
       }));
       
-      const newItems = [...state.items, ...adjustedItems];
+      const newItems = [...baseItems, ...adjustedItems];
       const newHistory = state.history.slice(0, state.historyIndex + 1);
       
       return {
@@ -574,5 +589,48 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         historyIndex: newHistory.length,
       };
     });
+
+    return mosaicId;
+  },
+
+  toggleLockItem: (id) => {
+    set(state => ({
+      items: state.items.map(e => 
+        e.id === id ? { ...e, locked: !e.locked } : e
+      ),
+    }));
+  },
+
+  unlockMosaicGroup: (mosaicId) => {
+    set(state => ({
+      items: state.items.map(e => 
+        e.mosaicId === mosaicId ? { ...e, locked: false } : e
+      ),
+    }));
+    get().saveToHistory();
+  },
+
+  removeMosaicGroup: (mosaicId) => {
+    set(state => {
+      const newItems = state.items.filter(e => e.mosaicId !== mosaicId);
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      return {
+        items: newItems,
+        selectedId: state.selectedId && state.items.find(e => e.id === state.selectedId)?.mosaicId === mosaicId 
+          ? null 
+          : state.selectedId,
+        history: [...newHistory, newItems],
+        historyIndex: newHistory.length,
+      };
+    });
+  },
+
+  findMosaicIdByItemId: (itemId) => {
+    const item = get().items.find(e => e.id === itemId);
+    return item?.mosaicId || null;
+  },
+
+  hasLockedItems: () => {
+    return get().items.some(e => e.locked);
   },
 }));
