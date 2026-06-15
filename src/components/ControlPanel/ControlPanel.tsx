@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { 
   Move, 
   ZoomIn, 
@@ -11,9 +12,27 @@ import {
   Type,
   Palette,
   Bold,
-  Sparkles
+  Sparkles,
+  Image,
+  Droplet,
+  Grid3X3,
+  Circle,
+  Plus,
+  Minus,
 } from 'lucide-react';
-import { useCanvasStore, type CanvasItem, type TextItem, type EmojiItem } from '@/hooks/useCanvasStore';
+import { 
+  useCanvasStore, 
+  type CanvasItem, 
+  type TextItem, 
+  type EmojiItem,
+  type BackgroundMode,
+  type PatternType,
+  SOLID_COLOR_PRESETS,
+  GRADIENT_PRESETS,
+  PATTERN_PRESETS,
+  type BackgroundPreset,
+  type GradientBackground,
+} from '@/hooks/useCanvasStore';
 import { cn } from '@/lib/utils';
 
 interface SliderControlProps {
@@ -124,6 +143,351 @@ const FONT_OPTIONS = [
   { label: 'Comic Sans', value: '"Comic Sans MS", cursive' },
 ];
 
+const BACKGROUND_MODES: { key: BackgroundMode; label: string; icon: React.ReactNode }[] = [
+  { key: 'solid', label: '纯色', icon: <Droplet className="w-4 h-4" /> },
+  { key: 'gradient', label: '渐变', icon: <Sparkles className="w-4 h-4" /> },
+  { key: 'pattern', label: '图案', icon: <Grid3X3 className="w-4 h-4" /> },
+];
+
+const PATTERN_TYPES: { key: PatternType; label: string }[] = [
+  { key: 'dots', label: '圆点' },
+  { key: 'grid', label: '网格' },
+  { key: 'lines', label: '条纹' },
+  { key: 'diagonal', label: '斜纹' },
+  { key: 'waves', label: '波浪' },
+  { key: 'zigzag', label: '锯齿' },
+];
+
+const GRADIENT_TYPES: { key: 'linear' | 'radial' | 'conic'; label: string }[] = [
+  { key: 'linear', label: '线性' },
+  { key: 'radial', label: '径向' },
+  { key: 'conic', label: '锥形' },
+];
+
+function buildPresetPreview(preset: BackgroundPreset): React.CSSProperties {
+  if (preset.mode === 'solid') {
+    return { backgroundColor: preset.preview };
+  }
+  if (preset.mode === 'gradient') {
+    return { background: preset.preview };
+  }
+  const [type, color, bgColor] = preset.preview.split(':');
+  const size = 10;
+  const patternColor = color;
+  const backgroundColor = bgColor;
+  
+  let backgroundImage = '';
+  let backgroundSize = `${size}px ${size}px`;
+  
+  switch (type) {
+    case 'dot':
+      backgroundImage = `radial-gradient(${patternColor} 1.5px, transparent 1.5px)`;
+      break;
+    case 'grid':
+      backgroundImage = `linear-gradient(${patternColor}33 1px, transparent 1px), linear-gradient(90deg, ${patternColor}33 1px, transparent 1px)`;
+      break;
+    case 'line':
+      backgroundImage = `repeating-linear-gradient(90deg, ${patternColor}33, ${patternColor}33 1px, transparent 1px, transparent ${size}px)`;
+      break;
+    case 'diag':
+      backgroundImage = `repeating-linear-gradient(45deg, ${patternColor}33, ${patternColor}33 1px, transparent 1px, transparent ${size}px)`;
+      break;
+    case 'wave':
+      backgroundImage = `radial-gradient(circle at 50% 0%, transparent 40%, ${patternColor}33 40%, ${patternColor}33 50%, transparent 50%), radial-gradient(circle at 50% 100%, transparent 40%, ${patternColor}33 40%, ${patternColor}33 50%, transparent 50%)`;
+      backgroundSize = `${size}px ${size / 2}px`;
+      break;
+    case 'zig':
+      backgroundImage = `linear-gradient(135deg, ${patternColor}33 25%, transparent 25%) 0 0, linear-gradient(225deg, ${patternColor}33 25%, transparent 25%) 0 0, linear-gradient(315deg, ${patternColor}33 25%, transparent 25%) 0 0, linear-gradient(45deg, ${patternColor}33 25%, transparent 25%) 0 0`;
+      break;
+  }
+  
+  return { backgroundImage, backgroundSize, backgroundColor };
+}
+
+function BackgroundPanel() {
+  const { 
+    background, 
+    setBackgroundMode, 
+    updateSolidBackground, 
+    updateGradientBackground, 
+    updatePatternBackground,
+    applyBackgroundPreset,
+  } = useCanvasStore();
+
+  const [activePresetTab, setActivePresetTab] = useState<BackgroundMode>('gradient');
+
+  const currentOpacity = background.opacity ?? 1;
+  const updateOpacity = (opacity: number) => {
+    if (background.mode === 'solid') updateSolidBackground({ opacity });
+    else if (background.mode === 'gradient') updateGradientBackground({ opacity });
+    else if (background.mode === 'pattern') updatePatternBackground({ opacity });
+  };
+
+  const currentPresets = 
+    background.mode === 'solid' ? SOLID_COLOR_PRESETS :
+    background.mode === 'gradient' ? GRADIENT_PRESETS :
+    PATTERN_PRESETS;
+
+  return (
+    <div className="flex flex-col h-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 overflow-hidden">
+      <div className="p-4 border-b border-gray-100">
+        <h3 className="text-lg font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent mb-3">
+          🎨 画布背景
+        </h3>
+        
+        <div className="grid grid-cols-3 gap-1.5 p-1 bg-gray-100 rounded-xl">
+          {BACKGROUND_MODES.map((m) => (
+            <button
+              key={m.key}
+              onClick={() => setBackgroundMode(m.key)}
+              className={cn(
+                "flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-sm font-medium transition-all",
+                background.mode === m.key
+                  ? "bg-white text-purple-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              )}
+            >
+              {m.icon}
+              <span>{m.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="space-y-4">
+          <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+            <Image className="w-4 h-4" />
+            预设背景
+          </h4>
+          
+          <div className="grid grid-cols-4 gap-2">
+            {currentPresets.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => applyBackgroundPreset(preset)}
+                className="group relative aspect-square rounded-xl overflow-hidden border-2 transition-all hover:scale-105 hover:shadow-lg"
+                title={preset.name}
+              >
+                <div 
+                  className="absolute inset-0"
+                  style={buildPresetPreview(preset)}
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-end justify-center pb-1">
+                  <span className="text-[10px] text-white bg-black/50 px-1.5 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    {preset.name}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+            <Palette className="w-4 h-4" />
+            自定义设置
+          </h4>
+
+          {background.mode === 'solid' && (
+            <div className="space-y-4">
+              <ColorPicker
+                label="背景颜色"
+                icon={<Droplet className="w-4 h-4 text-blue-500" />}
+                value={background.color}
+                onChange={(v) => updateSolidBackground({ color: v })}
+              />
+            </div>
+          )}
+
+          {background.mode === 'gradient' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <Sparkles className="w-4 h-4 text-purple-500" />
+                  <span>渐变类型</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {GRADIENT_TYPES.map((t) => (
+                    <button
+                      key={t.key}
+                      onClick={() => updateGradientBackground({ type: t.key })}
+                      className={cn(
+                        "py-1.5 px-2 rounded-lg text-xs font-medium transition-all",
+                        background.type === t.key
+                          ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      )}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {background.type !== 'radial' && (
+                <SliderControl
+                  label="渐变角度"
+                  icon={<RotateCw className="w-4 h-4 text-orange-500" />}
+                  value={background.angle}
+                  min={0}
+                  max={360}
+                  step={1}
+                  unit="°"
+                  onChange={(v) => updateGradientBackground({ angle: v })}
+                  color="orange"
+                />
+              )}
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <Palette className="w-4 h-4 text-pink-500" />
+                    <span>渐变颜色</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        const colors = [...background.colors];
+                        if (colors.length < 5) {
+                          colors.push({ 
+                            color: '#FFFFFF', 
+                            stop: colors.length > 0 ? (colors[colors.length - 1].stop + 1) / 2 : 0.5 
+                          });
+                          updateGradientBackground({ colors });
+                        }
+                      }}
+                      disabled={background.colors.length >= 5}
+                      className="p-1 rounded-md bg-purple-100 text-purple-600 hover:bg-purple-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        const colors = [...background.colors];
+                        if (colors.length > 2) {
+                          colors.pop();
+                          updateGradientBackground({ colors });
+                        }
+                      }}
+                      disabled={background.colors.length <= 2}
+                      className="p-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                  {background.colors.map((c, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <label className="relative w-7 h-7 rounded-lg cursor-pointer overflow-hidden border-2 border-gray-200 hover:border-purple-400 transition-colors flex-shrink-0">
+                        <input
+                          type="color"
+                          value={c.color}
+                          onChange={(e) => {
+                            const colors = [...background.colors];
+                            colors[idx] = { ...colors[idx], color: e.target.value };
+                            updateGradientBackground({ colors });
+                          }}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                        <div className="absolute inset-0" style={{ backgroundColor: c.color }} />
+                      </label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={c.stop}
+                        onChange={(e) => {
+                          const colors = [...background.colors];
+                          colors[idx] = { ...colors[idx], stop: Number(e.target.value) };
+                          (colors as GradientBackground['colors']).sort((a, b) => a.stop - b.stop);
+                          updateGradientBackground({ colors });
+                        }}
+                        className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                      />
+                      <span className="text-xs font-mono w-10 text-right text-gray-500">
+                        {Math.round(c.stop * 100)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {background.mode === 'pattern' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <Grid3X3 className="w-4 h-4 text-cyan-500" />
+                  <span>图案类型</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {PATTERN_TYPES.map((t) => (
+                    <button
+                      key={t.key}
+                      onClick={() => updatePatternBackground({ pattern: t.key })}
+                      className={cn(
+                        "py-1.5 px-2 rounded-lg text-xs font-medium transition-all",
+                        background.pattern === t.key
+                          ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-sm"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      )}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <ColorPicker
+                label="图案颜色"
+                icon={<Circle className="w-4 h-4 text-purple-500" />}
+                value={background.color}
+                onChange={(v) => updatePatternBackground({ color: v })}
+              />
+
+              <ColorPicker
+                label="底色"
+                icon={<Droplet className="w-4 h-4 text-pink-500" />}
+                value={background.backgroundColor}
+                onChange={(v) => updatePatternBackground({ backgroundColor: v })}
+              />
+
+              <SliderControl
+                label="图案大小"
+                icon={<Grid3X3 className="w-4 h-4 text-green-500" />}
+                value={background.size}
+                min={5}
+                max={80}
+                step={1}
+                unit="px"
+                onChange={(v) => updatePatternBackground({ size: v })}
+                color="green"
+              />
+            </div>
+          )}
+
+          <SliderControl
+            label="透明度"
+            icon={<Droplet className="w-4 h-4 text-blue-500" />}
+            value={currentOpacity}
+            min={0}
+            max={1}
+            step={0.01}
+            unit=""
+            onChange={updateOpacity}
+            color="blue"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ControlPanel() {
   const { 
     items, 
@@ -141,22 +505,7 @@ export function ControlPanel() {
   const selectedItem = items.find(e => e.id === selectedId);
 
   if (!selectedItem) {
-    return (
-      <div className="flex flex-col h-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 overflow-hidden">
-        <div className="p-4 border-b border-gray-100">
-          <h3 className="text-lg font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-            🎛️ 属性面板
-          </h3>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-6 text-center">
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-            <Layers className="w-8 h-8 text-gray-300" />
-          </div>
-          <p className="font-medium">选择一个元素</p>
-          <p className="text-sm mt-1">点击画布上的元素进行编辑</p>
-        </div>
-      </div>
-    );
+    return <BackgroundPanel />;
   }
 
   const handleUpdate = (key: keyof CanvasItem, value: number | string) => {

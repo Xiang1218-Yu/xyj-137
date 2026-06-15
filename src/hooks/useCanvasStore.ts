@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 
 export type CanvasItemType = 'emoji' | 'text';
+export type BackgroundMode = 'solid' | 'gradient' | 'pattern';
+export type PatternType = 'dots' | 'grid' | 'lines' | 'diagonal' | 'waves' | 'zigzag';
 
 export interface BaseCanvasItem {
   id: string;
@@ -37,6 +39,39 @@ export interface TextItem extends BaseCanvasItem {
 
 export type CanvasItem = EmojiItem | TextItem;
 
+export interface SolidBackground {
+  mode: 'solid';
+  color: string;
+  opacity: number;
+}
+
+export interface GradientBackground {
+  mode: 'gradient';
+  type: 'linear' | 'radial' | 'conic';
+  angle: number;
+  colors: { color: string; stop: number }[];
+  opacity: number;
+}
+
+export interface PatternBackground {
+  mode: 'pattern';
+  pattern: PatternType;
+  color: string;
+  backgroundColor: string;
+  size: number;
+  opacity: number;
+}
+
+export type CanvasBackground = SolidBackground | GradientBackground | PatternBackground;
+
+export interface BackgroundPreset {
+  id: string;
+  name: string;
+  mode: BackgroundMode;
+  background: CanvasBackground;
+  preview: string;
+}
+
 export const DEFAULT_TEXT_STYLE: TextStyle = {
   fontFamily: 'Arial',
   fontSize: 32,
@@ -49,12 +84,160 @@ export const DEFAULT_TEXT_STYLE: TextStyle = {
   shadowOffsetY: 0,
 };
 
+export const SOLID_COLOR_PRESETS: BackgroundPreset[] = [
+  { id: 'solid-white', name: '纯白', mode: 'solid', preview: '#FFFFFF', background: { mode: 'solid', color: '#FFFFFF', opacity: 1 } },
+  { id: 'solid-black', name: '纯黑', mode: 'solid', preview: '#111111', background: { mode: 'solid', color: '#111111', opacity: 1 } },
+  { id: 'solid-pink', name: '樱花粉', mode: 'solid', preview: '#FFF0F5', background: { mode: 'solid', color: '#FFF0F5', opacity: 1 } },
+  { id: 'solid-blue', name: '天空蓝', mode: 'solid', preview: '#E0F2FE', background: { mode: 'solid', color: '#E0F2FE', opacity: 1 } },
+  { id: 'solid-green', name: '薄荷绿', mode: 'solid', preview: '#ECFDF5', background: { mode: 'solid', color: '#ECFDF5', opacity: 1 } },
+  { id: 'solid-yellow', name: '柠檬黄', mode: 'solid', preview: '#FEF9C3', background: { mode: 'solid', color: '#FEF9C3', opacity: 1 } },
+  { id: 'solid-purple', name: '薰衣草', mode: 'solid', preview: '#F3E8FF', background: { mode: 'solid', color: '#F3E8FF', opacity: 1 } },
+  { id: 'solid-orange', name: '蜜桃橙', mode: 'solid', preview: '#FFEDD5', background: { mode: 'solid', color: '#FFEDD5', opacity: 1 } },
+  { id: 'solid-gray', name: '月光灰', mode: 'solid', preview: '#F3F4F6', background: { mode: 'solid', color: '#F3F4F6', opacity: 1 } },
+  { id: 'solid-cream', name: '奶油色', mode: 'solid', preview: '#FAF5E4', background: { mode: 'solid', color: '#FAF5E4', opacity: 1 } },
+  { id: 'solid-mint', name: '薄荷青', mode: 'solid', preview: '#CFFAFE', background: { mode: 'solid', color: '#CFFAFE', opacity: 1 } },
+  { id: 'solid-rose', name: '玫瑰红', mode: 'solid', preview: '#FFE4E6', background: { mode: 'solid', color: '#FFE4E6', opacity: 1 } },
+];
+
+export const GRADIENT_PRESETS: BackgroundPreset[] = [
+  {
+    id: 'gradient-sunset', name: '日落', mode: 'gradient',
+    preview: 'linear-gradient(135deg, #FF6B6B 0%, #FFE66D 100%)',
+    background: {
+      mode: 'gradient', type: 'linear', angle: 135, opacity: 1,
+      colors: [{ color: '#FF6B6B', stop: 0 }, { color: '#FFE66D', stop: 1 }]
+    }
+  },
+  {
+    id: 'gradient-ocean', name: '海洋', mode: 'gradient',
+    preview: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: {
+      mode: 'gradient', type: 'linear', angle: 135, opacity: 1,
+      colors: [{ color: '#667eea', stop: 0 }, { color: '#764ba2', stop: 1 }]
+    }
+  },
+  {
+    id: 'gradient-aurora', name: '极光', mode: 'gradient',
+    preview: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+    background: {
+      mode: 'gradient', type: 'linear', angle: 135, opacity: 1,
+      colors: [{ color: '#a8edea', stop: 0 }, { color: '#fed6e3', stop: 1 }]
+    }
+  },
+  {
+    id: 'gradient-fire', name: '火焰', mode: 'gradient',
+    preview: 'linear-gradient(135deg, #f12711 0%, #f5af19 100%)',
+    background: {
+      mode: 'gradient', type: 'linear', angle: 135, opacity: 1,
+      colors: [{ color: '#f12711', stop: 0 }, { color: '#f5af19', stop: 1 }]
+    }
+  },
+  {
+    id: 'gradient-forest', name: '森林', mode: 'gradient',
+    preview: 'linear-gradient(135deg, #134E5E 0%, #71B280 100%)',
+    background: {
+      mode: 'gradient', type: 'linear', angle: 135, opacity: 1,
+      colors: [{ color: '#134E5E', stop: 0 }, { color: '#71B280', stop: 1 }]
+    }
+  },
+  {
+    id: 'gradient-candy', name: '糖果', mode: 'gradient',
+    preview: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)',
+    background: {
+      mode: 'gradient', type: 'linear', angle: 135, opacity: 1,
+      colors: [{ color: '#ff9a9e', stop: 0 }, { color: '#fecfef', stop: 0.5 }, { color: '#fecfef', stop: 1 }]
+    }
+  },
+  {
+    id: 'gradient-dream', name: '梦境', mode: 'gradient',
+    preview: 'linear-gradient(135deg, #fff5f7 0%, #f5f3ff 50%, #f0f9ff 100%)',
+    background: {
+      mode: 'gradient', type: 'linear', angle: 135, opacity: 1,
+      colors: [{ color: '#fff5f7', stop: 0 }, { color: '#f5f3ff', stop: 0.5 }, { color: '#f0f9ff', stop: 1 }]
+    }
+  },
+  {
+    id: 'gradient-radial-sun', name: '旭日', mode: 'gradient',
+    preview: 'radial-gradient(circle, #f6d365 0%, #fda085 100%)',
+    background: {
+      mode: 'gradient', type: 'radial', angle: 0, opacity: 1,
+      colors: [{ color: '#f6d365', stop: 0 }, { color: '#fda085', stop: 1 }]
+    }
+  },
+  {
+    id: 'gradient-radial-bloom', name: '绽放', mode: 'gradient',
+    preview: 'radial-gradient(circle, #fbc2eb 0%, #a6c1ee 100%)',
+    background: {
+      mode: 'gradient', type: 'radial', angle: 0, opacity: 1,
+      colors: [{ color: '#fbc2eb', stop: 0 }, { color: '#a6c1ee', stop: 1 }]
+    }
+  },
+  {
+    id: 'gradient-radial-ocean', name: '深海', mode: 'gradient',
+    preview: 'radial-gradient(circle, #2193b0 0%, #6dd5ed 100%)',
+    background: {
+      mode: 'gradient', type: 'radial', angle: 0, opacity: 1,
+      colors: [{ color: '#2193b0', stop: 0 }, { color: '#6dd5ed', stop: 1 }]
+    }
+  },
+  {
+    id: 'gradient-triple', name: '彩虹', mode: 'gradient',
+    preview: 'linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 50%, #45B7D1 100%)',
+    background: {
+      mode: 'gradient', type: 'linear', angle: 135, opacity: 1,
+      colors: [{ color: '#FF6B6B', stop: 0 }, { color: '#4ECDC4', stop: 0.5 }, { color: '#45B7D1', stop: 1 }]
+    }
+  },
+  {
+    id: 'gradient-night', name: '夜空', mode: 'gradient',
+    preview: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)',
+    background: {
+      mode: 'gradient', type: 'linear', angle: 135, opacity: 1,
+      colors: [{ color: '#0f0c29', stop: 0 }, { color: '#302b63', stop: 0.5 }, { color: '#24243e', stop: 1 }]
+    }
+  },
+];
+
+export const PATTERN_PRESETS: BackgroundPreset[] = [
+  { id: 'pattern-dots-pink', name: '粉色圆点', mode: 'pattern', preview: 'dot:#F472B6:#FFF0F5', background: { mode: 'pattern', pattern: 'dots', color: '#F472B6', backgroundColor: '#FFF0F5', size: 20, opacity: 1 } },
+  { id: 'pattern-dots-blue', name: '蓝色圆点', mode: 'pattern', preview: 'dot:#3B82F6:#E0F2FE', background: { mode: 'pattern', pattern: 'dots', color: '#3B82F6', backgroundColor: '#E0F2FE', size: 20, opacity: 1 } },
+  { id: 'pattern-grid-purple', name: '紫色网格', mode: 'pattern', preview: 'grid:#A855F7:#F5F3FF', background: { mode: 'pattern', pattern: 'grid', color: '#A855F7', backgroundColor: '#F5F3FF', size: 25, opacity: 1 } },
+  { id: 'pattern-grid-green', name: '绿色网格', mode: 'pattern', preview: 'grid:#10B981:#ECFDF5', background: { mode: 'pattern', pattern: 'grid', color: '#10B981', backgroundColor: '#ECFDF5', size: 25, opacity: 1 } },
+  { id: 'pattern-lines-orange', name: '橙色条纹', mode: 'pattern', preview: 'line:#F97316:#FFEDD5', background: { mode: 'pattern', pattern: 'lines', color: '#F97316', backgroundColor: '#FFEDD5', size: 15, opacity: 1 } },
+  { id: 'pattern-lines-gray', name: '灰色条纹', mode: 'pattern', preview: 'line:#9CA3AF:#F3F4F6', background: { mode: 'pattern', pattern: 'lines', color: '#9CA3AF', backgroundColor: '#F3F4F6', size: 15, opacity: 1 } },
+  { id: 'pattern-diagonal-red', name: '红色斜纹', mode: 'pattern', preview: 'diag:#EF4444:#FEF2F2', background: { mode: 'pattern', pattern: 'diagonal', color: '#EF4444', backgroundColor: '#FEF2F2', size: 20, opacity: 1 } },
+  { id: 'pattern-diagonal-teal', name: '青色斜纹', mode: 'pattern', preview: 'diag:#14B8A6:#F0FDFA', background: { mode: 'pattern', pattern: 'diagonal', color: '#14B8A6', backgroundColor: '#F0FDFA', size: 20, opacity: 1 } },
+  { id: 'pattern-waves-cyan', name: '青色波浪', mode: 'pattern', preview: 'wave:#06B6D4:#CFFAFE', background: { mode: 'pattern', pattern: 'waves', color: '#06B6D4', backgroundColor: '#CFFAFE', size: 30, opacity: 1 } },
+  { id: 'pattern-waves-violet', name: '紫色波浪', mode: 'pattern', preview: 'wave:#8B5CF6:#EDE9FE', background: { mode: 'pattern', pattern: 'waves', color: '#8B5CF6', backgroundColor: '#EDE9FE', size: 30, opacity: 1 } },
+  { id: 'pattern-zigzag-amber', name: '琥珀锯齿', mode: 'pattern', preview: 'zig:#F59E0B:#FFFBEB', background: { mode: 'pattern', pattern: 'zigzag', color: '#F59E0B', backgroundColor: '#FFFBEB', size: 25, opacity: 1 } },
+  { id: 'pattern-zigzag-indigo', name: '靛蓝锯齿', mode: 'pattern', preview: 'zig:#6366F1:#EEF2FF', background: { mode: 'pattern', pattern: 'zigzag', color: '#6366F1', backgroundColor: '#EEF2FF', size: 25, opacity: 1 } },
+];
+
+export const ALL_BACKGROUND_PRESETS = [
+  ...SOLID_COLOR_PRESETS,
+  ...GRADIENT_PRESETS,
+  ...PATTERN_PRESETS,
+];
+
+export const DEFAULT_BACKGROUND: CanvasBackground = {
+  mode: 'gradient',
+  type: 'linear',
+  angle: 135,
+  opacity: 1,
+  colors: [
+    { color: '#fff5f7', stop: 0 },
+    { color: '#f5f3ff', stop: 0.5 },
+    { color: '#f0f9ff', stop: 1 }
+  ]
+};
+
 interface CanvasState {
   items: CanvasItem[];
   selectedId: string | null;
   history: CanvasItem[][];
   historyIndex: number;
   canvasSize: { width: number; height: number };
+  background: CanvasBackground;
   
   addEmoji: (emoji: string) => void;
   addText: (text?: string) => void;
@@ -70,6 +253,12 @@ interface CanvasState {
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
   saveToHistory: () => void;
+  setBackground: (background: CanvasBackground) => void;
+  setBackgroundMode: (mode: BackgroundMode) => void;
+  updateSolidBackground: (updates: Partial<SolidBackground>) => void;
+  updateGradientBackground: (updates: Partial<GradientBackground>) => void;
+  updatePatternBackground: (updates: Partial<PatternBackground>) => void;
+  applyBackgroundPreset: (preset: BackgroundPreset) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -80,6 +269,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   history: [[]],
   historyIndex: 0,
   canvasSize: { width: 400, height: 400 },
+  background: DEFAULT_BACKGROUND,
 
   addEmoji: (emoji: string) => {
     const { items, canvasSize } = get();
@@ -277,5 +467,72 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         historyIndex: newHistory.length,
       };
     });
+  },
+
+  setBackground: (background: CanvasBackground) => {
+    set({ background });
+  },
+
+  setBackgroundMode: (mode: BackgroundMode) => {
+    const currentBg = get().background;
+    let newBg: CanvasBackground;
+    
+    if (mode === 'solid') {
+      newBg = {
+        mode: 'solid',
+        color: '#FFFFFF',
+        opacity: currentBg.opacity ?? 1,
+      };
+    } else if (mode === 'gradient') {
+      newBg = {
+        mode: 'gradient',
+        type: 'linear',
+        angle: 135,
+        opacity: currentBg.opacity ?? 1,
+        colors: [
+          { color: '#667eea', stop: 0 },
+          { color: '#764ba2', stop: 1 },
+        ],
+      };
+    } else {
+      newBg = {
+        mode: 'pattern',
+        pattern: 'dots',
+        color: '#A855F7',
+        backgroundColor: '#F5F3FF',
+        size: 20,
+        opacity: currentBg.opacity ?? 1,
+      };
+    }
+    
+    set({ background: newBg });
+  },
+
+  updateSolidBackground: (updates: Partial<SolidBackground>) => {
+    const state = get();
+    if (state.background.mode !== 'solid') return;
+    set({
+      background: { ...state.background, ...updates },
+    });
+  },
+
+  updateGradientBackground: (updates: Partial<GradientBackground>) => {
+    const state = get();
+    if (state.background.mode !== 'gradient') return;
+    set({
+      background: { ...state.background, ...updates },
+    });
+  },
+
+  updatePatternBackground: (updates: Partial<PatternBackground>) => {
+    const state = get();
+    if (state.background.mode !== 'pattern') return;
+    set({
+      background: { ...state.background, ...updates },
+    });
+  },
+
+  applyBackgroundPreset: (preset: BackgroundPreset) => {
+    set({ background: { ...preset.background } });
   },
 }));
