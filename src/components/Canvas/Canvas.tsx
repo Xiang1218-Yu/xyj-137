@@ -1,18 +1,22 @@
 import { CanvasEmoji } from './CanvasEmoji';
+import { CanvasText } from './CanvasText';
 import { useCanvasStore } from '@/hooks/useCanvasStore';
+import type { EmojiItem, TextItem } from '@/hooks/useCanvasStore';
 
 interface CanvasProps {
   canvasRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function Canvas({ canvasRef }: CanvasProps) {
-  const { emojis, selectedId, selectEmoji, canvasSize } = useCanvasStore();
+  const { items, selectedId, selectItem, canvasSize } = useCanvasStore();
 
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-      selectEmoji(null);
+      selectItem(null);
     }
   };
+
+  const sortedItems = [...items].sort((a, b) => a.zIndex - b.zIndex);
 
   return (
     <div className="flex flex-col items-center gap-4 w-full">
@@ -47,15 +51,30 @@ export function Canvas({ canvasRef }: CanvasProps) {
           
           <div className="absolute inset-4 border-2 border-dashed border-purple-200 rounded-2xl pointer-events-none" />
           
-          {emojis.map((item) => (
-            <CanvasEmoji
-              key={item.id}
-              item={item}
-              isSelected={selectedId === item.id}
-            />
-          ))}
+          {sortedItems.map((item) => {
+            const isSelected = selectedId === item.id;
+            if (item.type === 'emoji') {
+              return (
+                <CanvasEmoji
+                  key={item.id}
+                  item={item as EmojiItem}
+                  isSelected={isSelected}
+                />
+              );
+            }
+            if (item.type === 'text') {
+              return (
+                <CanvasText
+                  key={item.id}
+                  item={item as TextItem}
+                  isSelected={isSelected}
+                />
+              );
+            }
+            return null;
+          })}
           
-          {emojis.length === 0 && (
+          {items.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none">
               <div className="text-6xl mb-4 animate-bounce">✨</div>
               <p className="text-lg font-medium">点击左侧表情添加到画布</p>

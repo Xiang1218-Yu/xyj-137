@@ -10,7 +10,7 @@ export default function Home() {
   const undo = useCanvasStore(state => state.undo);
   const redo = useCanvasStore(state => state.redo);
   const selectedId = useCanvasStore(state => state.selectedId);
-  const removeEmoji = useCanvasStore(state => state.removeEmoji);
+  const removeItem = useCanvasStore(state => state.removeItem);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -30,13 +30,13 @@ export default function Home() {
 
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
         e.preventDefault();
-        removeEmoji(selectedId);
+        removeItem(selectedId);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, selectedId, removeEmoji]);
+  }, [undo, redo, selectedId, removeItem]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 flex flex-col">

@@ -1,16 +1,15 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { useCanvasStore, type EmojiItem } from '@/hooks/useCanvasStore';
+import { useCanvasStore, type TextItem } from '@/hooks/useCanvasStore';
 import { cn } from '@/lib/utils';
 
-interface CanvasEmojiProps {
-  item: EmojiItem;
+interface CanvasTextProps {
+  item: TextItem;
   isSelected: boolean;
 }
 
-const EMOJI_SIZE = 80;
-
-export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
-  const emojiRef = useRef<HTMLDivElement>(null);
+export function CanvasText({ item, isSelected }: CanvasTextProps) {
+  const textRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const updateItem = useCanvasStore(state => state.updateItem);
   const selectItem = useCanvasStore(state => state.selectItem);
   const saveToHistory = useCanvasStore(state => state.saveToHistory);
@@ -19,7 +18,9 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [isNew, setIsNew] = useState(true);
+  const [editText, setEditText] = useState(item.text);
   const dragStart = useRef({ x: 0, y: 0, itemX: 0, itemY: 0 });
   const resizeStart = useRef({ scale: 0, distance: 0 });
   const rotateStart = useRef({ angle: 0, rotation: 0 });
@@ -30,10 +31,11 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (isEditing) return;
     e.stopPropagation();
     selectItem(item.id);
     
-    const rect = emojiRef.current?.getBoundingClientRect();
+    const rect = textRef.current?.getBoundingClientRect();
     if (!rect) return;
     
     setIsDragging(true);
@@ -43,13 +45,19 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
       itemX: item.x,
       itemY: item.y,
     };
-  }, [item.id, item.x, item.y, selectItem]);
+  }, [item.id, item.x, item.y, selectItem, isEditing]);
+
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditText(item.text);
+  }, [item.text]);
 
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     
-    const rect = emojiRef.current?.getBoundingClientRect();
+    const rect = textRef.current?.getBoundingClientRect();
     if (!rect) return;
     
     const centerX = rect.left + rect.width / 2;
@@ -69,7 +77,7 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
     e.stopPropagation();
     e.preventDefault();
     
-    const rect = emojiRef.current?.getBoundingClientRect();
+    const rect = textRef.current?.getBoundingClientRect();
     if (!rect) return;
     
     const centerX = rect.left + rect.width / 2;
@@ -95,7 +103,7 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
       }
       
       if (isResizing) {
-        const rect = emojiRef.current?.getBoundingClientRect();
+        const rect = textRef.current?.getBoundingClientRect();
         if (!rect) return;
         
         const centerX = rect.left + rect.width / 2;
@@ -110,7 +118,7 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
       }
       
       if (isRotating) {
-        const rect = emojiRef.current?.getBoundingClientRect();
+        const rect = textRef.current?.getBoundingClientRect();
         if (!rect) return;
         
         const centerX = rect.left + rect.width / 2;
@@ -142,8 +150,41 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
     };
   }, [isDragging, isResizing, isRotating, item.id, updateItem, saveToHistory]);
 
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const finishEditing = useCallback(() => {
+    setIsEditing(false);
+    const trimmed = editText.trim();
+    if (trimmed && trimmed !== item.text) {
+      updateItem(item.id, { text: trimmed });
+      saveToHistory();
+    } else if (!trimmed) {
+      setEditText(item.text);
+    }
+  }, [editText, item.id, item.text, updateItem, saveToHistory]);
+
+  const handleInputBlur = useCallback(() => {
+    finishEditing();
+  }, [finishEditing]);
+
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      finishEditing();
+    }
+    if (e.key === 'Escape') {
+      setEditText(item.text);
+      setIsEditing(false);
+    }
+  }, [finishEditing, item.text]);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!isSelected) return;
+    if (!isSelected || isEditing) return;
     
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
@@ -164,15 +205,21 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
       e.preventDefault();
       updateItem(item.id, { x: item.x + moveAmount });
     }
-  }, [isSelected, item.id, item.x, item.y, updateItem, removeItem]);
+  }, [isSelected, isEditing, item.id, item.x, item.y, updateItem, removeItem]);
 
-  const size = EMOJI_SIZE * item.scale;
+  const { style } = item;
+  const fontSize = style.fontSize * item.scale;
+
+  const textShadow = style.shadowBlur > 0 || style.shadowOffsetX !== 0 || style.shadowOffsetY !== 0
+    ? `${style.shadowOffsetX}px ${style.shadowOffsetY}px ${style.shadowBlur}px ${style.shadowColor}`
+    : 'none';
 
   return (
     <div
-      ref={emojiRef}
+      ref={textRef}
       tabIndex={0}
       onMouseDown={handleMouseDown}
+      onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
       className={cn(
         "absolute cursor-move select-none focus:outline-none",
@@ -181,24 +228,53 @@ export function CanvasEmoji({ item, isSelected }: CanvasEmojiProps) {
       style={{
         left: item.x,
         top: item.y,
-        width: size,
-        height: size,
         zIndex: item.zIndex,
         transform: `rotate(${item.rotation}deg)`,
       }}
     >
       <div
         className={cn(
-          "w-full h-full flex items-center justify-center transition-all duration-75",
+          "whitespace-nowrap font-bold transition-all duration-75",
           isDragging && "drop-shadow-2xl",
           isNew && "animate-bounce-in"
         )}
-        style={{ fontSize: size * 0.8 }}
+        style={{
+          fontFamily: style.fontFamily,
+          fontSize,
+          color: style.color,
+          textShadow,
+          WebkitTextStroke: style.strokeWidth > 0 ? `${style.strokeWidth}px ${style.strokeColor}` : 'none',
+          paintOrder: 'stroke fill',
+          lineHeight: 1.2,
+        }}
       >
-        {item.emoji}
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
+            className="bg-transparent border-none outline-none font-bold"
+            style={{
+              fontFamily: style.fontFamily,
+              fontSize,
+              color: style.color,
+              textShadow,
+              WebkitTextStroke: style.strokeWidth > 0 ? `${style.strokeWidth}px ${style.strokeColor}` : 'none',
+              paintOrder: 'stroke fill',
+              lineHeight: 1.2,
+              width: 'auto',
+              minWidth: '1em',
+            }}
+          />
+        ) : (
+          item.text
+        )}
       </div>
       
-      {isSelected && (
+      {isSelected && !isEditing && (
         <>
           <div className="absolute inset-0 border-2 border-dashed border-purple-400 rounded-lg pointer-events-none animate-pulse" />
           

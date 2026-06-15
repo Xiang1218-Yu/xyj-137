@@ -12,20 +12,20 @@ import { useCanvasStore } from '@/hooks/useCanvasStore';
 import { exportEmojisAsPng, copyImageToClipboard, downloadImage } from '@/utils/exportImage';
 
 export function Toolbar() {
-  const { emojis, clearCanvas, undo, redo, historyIndex, history, canvasSize } = useCanvasStore();
+  const { items, clearCanvas, undo, redo, historyIndex, history, canvasSize } = useCanvasStore();
   const [copySuccess, setCopySuccess] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
-  const hasEmojis = emojis.length > 0;
+  const hasItems = items.length > 0;
 
   const handleCopy = async () => {
-    if (!hasEmojis) return;
+    if (!hasItems) return;
     
     setIsExporting(true);
     try {
-      const dataUrl = await exportEmojisAsPng(emojis, canvasSize.width, canvasSize.height);
+      const dataUrl = await exportEmojisAsPng(items, canvasSize.width, canvasSize.height);
       const success = await copyImageToClipboard(dataUrl);
       
       if (success) {
@@ -40,11 +40,11 @@ export function Toolbar() {
   };
 
   const handleDownload = async () => {
-    if (!hasEmojis) return;
+    if (!hasItems) return;
     
     setIsExporting(true);
     try {
-      const dataUrl = await exportEmojisAsPng(emojis, canvasSize.width, canvasSize.height);
+      const dataUrl = await exportEmojisAsPng(items, canvasSize.width, canvasSize.height);
       downloadImage(dataUrl, `emoji-combo-${Date.now()}.png`);
     } catch (error) {
       console.error('Download failed:', error);
@@ -77,7 +77,7 @@ export function Toolbar() {
         
         <button
           onClick={clearCanvas}
-          disabled={!hasEmojis}
+          disabled={!hasItems}
           className="p-2.5 rounded-xl text-gray-600 hover:bg-red-100 hover:text-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           title="清空画布"
         >
@@ -88,7 +88,7 @@ export function Toolbar() {
       <div className="flex items-center gap-2">
         <button
           onClick={handleDownload}
-          disabled={!hasEmojis || isExporting}
+          disabled={!hasItems || isExporting}
           className="flex items-center gap-2 px-5 py-3 bg-white/80 backdrop-blur-md text-gray-700 rounded-2xl font-medium shadow-lg border border-white/50 hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all"
         >
           <Download className="w-5 h-5" />
@@ -97,7 +97,7 @@ export function Toolbar() {
         
         <button
           onClick={handleCopy}
-          disabled={!hasEmojis || isExporting}
+          disabled={!hasItems || isExporting}
           className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-medium shadow-lg transition-all ${
             copySuccess
               ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white'
