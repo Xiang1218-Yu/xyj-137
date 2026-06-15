@@ -6,9 +6,16 @@ export interface AnimationFrame {
   delay: number;
 }
 
-function quantizeImageData(imageData: ImageData, paletteSize: number = 256): {
+function nextPowerOf2(n: number): number {
+  let p = 2;
+  while (p < n) p <<= 1;
+  return Math.min(p, 256);
+}
+
+function quantizeImageData(imageData: ImageData, maxPaletteSize: number = 256): {
   indices: Uint8ClampedArray;
   palette: number[];
+  paletteSize: number;
 } {
   const data = imageData.data;
   const pixelCount = imageData.width * imageData.height;
@@ -36,7 +43,7 @@ function quantizeImageData(imageData: ImageData, paletteSize: number = 256): {
     let colorIndex = colorMap.get(key);
     
     if (colorIndex === undefined) {
-      if (palette.length >= paletteSize * 4) {
+      if (palette.length / 4 >= maxPaletteSize) {
         let minDist = Infinity;
         let nearest = 0;
         for (let j = 0; j < palette.length; j += 4) {
@@ -60,11 +67,14 @@ function quantizeImageData(imageData: ImageData, paletteSize: number = 256): {
     indices[i] = colorIndex;
   }
   
+  const actualColorCount = palette.length / 4;
+  const paletteSize = nextPowerOf2(Math.max(actualColorCount, 2));
+  
   while (palette.length < paletteSize * 4) {
     palette.push(0, 0, 0, 0);
   }
   
-  return { indices, palette };
+  return { indices, palette, paletteSize };
 }
 
 export function encodeGIF(frames: AnimationFrame[], width: number, height: number): Uint8Array {
@@ -75,10 +85,10 @@ export function encodeGIF(frames: AnimationFrame[], width: number, height: numbe
     const frame = frames[i];
     const ctx = frame.canvas.getContext('2d')!;
     const imageData = ctx.getImageData(0, 0, width, height);
-    const { indices, palette } = quantizeImageData(imageData, 256);
+    const { indices, palette, paletteSize } = quantizeImageData(imageData, 256);
     
     const paletteRGB: number[] = [];
-    for (let j = 0; j < palette.length; j += 4) {
+    for (let j = 0; j < paletteSize * 4; j += 4) {
       paletteRGB.push(palette[j], palette[j + 1], palette[j + 2]);
     }
     

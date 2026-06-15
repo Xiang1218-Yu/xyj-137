@@ -205,6 +205,10 @@ export function Canvas({ canvasRef }: CanvasProps) {
   const { items, selectedId, selectItem, canvasSize, background, animationSettings, setCurrentFrame } = useCanvasStore();
   const animationFrameRef = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
+  const currentFrameRef = useRef<number>(0);
+  const frameCountRef = useRef<number>(30);
+  const frameDelayRef = useRef<number>(50);
+  const isPlayingRef = useRef<boolean>(false);
 
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -216,8 +220,26 @@ export function Canvas({ canvasRef }: CanvasProps) {
   const bgStyles = buildBackgroundStyles(background);
 
   const { isPlaying, frameCount, frameDelay, currentFrame } = animationSettings;
+  const hasAnyAnimation = items.some(item => item.animation && item.animation.preset !== 'none');
+  const showAnimated = hasAnyAnimation;
 
   useEffect(() => {
+    frameCountRef.current = frameCount;
+  }, [frameCount]);
+
+  useEffect(() => {
+    frameDelayRef.current = frameDelay;
+  }, [frameDelay]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      currentFrameRef.current = currentFrame;
+    }
+  }, [currentFrame, isPlaying]);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+
     if (!isPlaying) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -226,10 +248,15 @@ export function Canvas({ canvasRef }: CanvasProps) {
       return;
     }
 
+    lastUpdateRef.current = 0;
+
     const animate = (timestamp: number) => {
-      if (timestamp - lastUpdateRef.current >= frameDelay) {
+      if (!isPlayingRef.current) return;
+
+      if (timestamp - lastUpdateRef.current >= frameDelayRef.current) {
         lastUpdateRef.current = timestamp;
-        setCurrentFrame((currentFrame + 1) % frameCount);
+        currentFrameRef.current = (currentFrameRef.current + 1) % frameCountRef.current;
+        setCurrentFrame(currentFrameRef.current);
       }
       animationFrameRef.current = requestAnimationFrame(animate);
     };
@@ -239,9 +266,12 @@ export function Canvas({ canvasRef }: CanvasProps) {
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
-  }, [isPlaying, frameCount, frameDelay, currentFrame, setCurrentFrame]);
+  }, [isPlaying, setCurrentFrame]);
+
+  const displayFrame = isPlaying ? currentFrameRef.current : currentFrame;
 
   return (
     <div className="flex flex-col items-center gap-4 w-full">
@@ -258,7 +288,7 @@ export function Canvas({ canvasRef }: CanvasProps) {
         >
           <div className="absolute inset-4 border-2 border-dashed border-purple-200/50 rounded-2xl pointer-events-none" />
           
-          {isPlaying ? (
+          {showAnimated ? (
             sortedItems.map((item) => {
               const isSelected = selectedId === item.id;
               return (
@@ -266,7 +296,7 @@ export function Canvas({ canvasRef }: CanvasProps) {
                   key={item.id}
                   item={item}
                   isSelected={isSelected}
-                  frameIndex={currentFrame}
+                  frameIndex={displayFrame}
                   totalFrames={frameCount}
                   isAnimating={isPlaying}
                 />
