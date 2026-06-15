@@ -7,7 +7,6 @@ import { useCanvasStore } from '@/hooks/useCanvasStore';
 
 export default function Home() {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const exportCanvasRef = useRef<HTMLDivElement>(null);
   const undo = useCanvasStore(state => state.undo);
   const redo = useCanvasStore(state => state.redo);
   const selectedId = useCanvasStore(state => state.selectedId);
@@ -84,10 +83,10 @@ export default function Home() {
 
               <div className="col-span-6 flex flex-col h-full min-h-0">
                 <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
-                  <Canvas canvasRef={canvasRef} exportCanvasRef={exportCanvasRef} />
+                  <Canvas canvasRef={canvasRef} />
                 </div>
                 <div className="mt-6 flex-shrink-0">
-                  <Toolbar canvasRef={canvasRef} exportCanvasRef={exportCanvasRef} />
+                  <Toolbar />
                 </div>
               </div>
 

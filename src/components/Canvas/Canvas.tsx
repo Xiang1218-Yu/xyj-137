@@ -1,13 +1,11 @@
-import { useRef } from 'react';
 import { CanvasEmoji } from './CanvasEmoji';
 import { useCanvasStore } from '@/hooks/useCanvasStore';
 
 interface CanvasProps {
   canvasRef: React.RefObject<HTMLDivElement | null>;
-  exportCanvasRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export function Canvas({ canvasRef, exportCanvasRef }: CanvasProps) {
+export function Canvas({ canvasRef }: CanvasProps) {
   const { emojis, selectedId, selectEmoji, canvasSize } = useCanvasStore();
 
   const handleCanvasClick = (e: React.MouseEvent) => {
@@ -64,37 +62,6 @@ export function Canvas({ canvasRef, exportCanvasRef }: CanvasProps) {
               <p className="text-sm mt-2">拖拽调整位置 · 自由创作</p>
             </div>
           )}
-        </div>
-        
-        <div 
-          ref={exportCanvasRef}
-          className="fixed left-[-9999px] top-[-9999px] pointer-events-none"
-          style={{
-            width: canvasSize.width,
-            height: canvasSize.height,
-            backgroundColor: 'transparent',
-          }}
-        >
-          {emojis.map((item) => (
-            <div
-              key={item.id}
-              className="absolute"
-              style={{
-                left: item.x,
-                top: item.y,
-                width: 80 * item.scale,
-                height: 80 * item.scale,
-                zIndex: item.zIndex,
-                transform: `rotate(${item.rotation}deg)`,
-                fontSize: 80 * item.scale * 0.8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {item.emoji}
-            </div>
-          ))}
         </div>
         
         <div className="absolute inset-0 bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200 rounded-[3rem] opacity-30 blur-xl -z-10" />

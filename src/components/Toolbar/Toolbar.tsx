@@ -9,15 +9,10 @@ import {
   Check
 } from 'lucide-react';
 import { useCanvasStore } from '@/hooks/useCanvasStore';
-import { exportAsPng, copyImageToClipboard, downloadImage } from '@/utils/exportImage';
+import { exportEmojisAsPng, copyImageToClipboard, downloadImage } from '@/utils/exportImage';
 
-interface ToolbarProps {
-  canvasRef: React.RefObject<HTMLDivElement | null>;
-  exportCanvasRef?: React.RefObject<HTMLDivElement | null>;
-}
-
-export function Toolbar({ canvasRef, exportCanvasRef }: ToolbarProps) {
-  const { emojis, clearCanvas, undo, redo, historyIndex, history } = useCanvasStore();
+export function Toolbar() {
+  const { emojis, clearCanvas, undo, redo, historyIndex, history, canvasSize } = useCanvasStore();
   const [copySuccess, setCopySuccess] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -25,18 +20,12 @@ export function Toolbar({ canvasRef, exportCanvasRef }: ToolbarProps) {
   const canRedo = historyIndex < history.length - 1;
   const hasEmojis = emojis.length > 0;
 
-  const getExportElement = (): HTMLElement | null => {
-    if (exportCanvasRef?.current) return exportCanvasRef.current;
-    return canvasRef.current;
-  };
-
   const handleCopy = async () => {
-    const exportElement = getExportElement();
-    if (!exportElement || !hasEmojis) return;
+    if (!hasEmojis) return;
     
     setIsExporting(true);
     try {
-      const dataUrl = await exportAsPng(exportElement);
+      const dataUrl = await exportEmojisAsPng(emojis, canvasSize.width, canvasSize.height);
       const success = await copyImageToClipboard(dataUrl);
       
       if (success) {
@@ -51,12 +40,11 @@ export function Toolbar({ canvasRef, exportCanvasRef }: ToolbarProps) {
   };
 
   const handleDownload = async () => {
-    const exportElement = getExportElement();
-    if (!exportElement || !hasEmojis) return;
+    if (!hasEmojis) return;
     
     setIsExporting(true);
     try {
-      const dataUrl = await exportAsPng(exportElement);
+      const dataUrl = await exportEmojisAsPng(emojis, canvasSize.width, canvasSize.height);
       downloadImage(dataUrl, `emoji-combo-${Date.now()}.png`);
     } catch (error) {
       console.error('Download failed:', error);
