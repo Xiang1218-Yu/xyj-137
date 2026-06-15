@@ -127,8 +127,8 @@ export function AnimationPanel() {
   };
 
   return (
-    <div className="flex flex-col gap-4 h-full">
-      <div className="flex items-center gap-2 mb-2">
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex-shrink-0 flex items-center gap-2 mb-2">
         <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center shadow-lg">
           <Wand2 className="w-5 h-5 text-white" />
         </div>
@@ -138,7 +138,7 @@ export function AnimationPanel() {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden pr-1 -mr-1 space-y-3 pb-2">
         <div className="px-3 py-2 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-100">
           <p className="text-xs text-pink-700 font-medium">
             {selectedId

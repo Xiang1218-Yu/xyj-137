@@ -16,13 +16,16 @@ function quantizeImageData(imageData: ImageData, maxPaletteSize: number = 256): 
   indices: Uint8ClampedArray;
   palette: number[];
   paletteSize: number;
+  transparentIndex: number;
 } {
   const data = imageData.data;
   const pixelCount = imageData.width * imageData.height;
   
   const colorMap = new Map<string, number>();
-  const palette: number[] = [];
+  const paletteRGBA: number[] = [];
   const indices = new Uint8ClampedArray(pixelCount);
+  let transparentIndex = 0;
+  let hasTransparent = false;
   
   for (let i = 0; i < pixelCount; i++) {
     const offset = i * 4;
@@ -32,10 +35,12 @@ function quantizeImageData(imageData: ImageData, maxPaletteSize: number = 256): 
     const a = data[offset + 3];
     
     if (a < 128) {
-      indices[i] = 0;
-      if (palette.length === 0) {
-        palette.push(0, 0, 0, 0);
+      if (!hasTransparent) {
+        hasTransparent = true;
+        transparentIndex = paletteRGBA.length / 4;
+        paletteRGBA.push(0, 0, 0, 0);
       }
+      indices[i] = transparentIndex;
       continue;
     }
     
@@ -43,13 +48,14 @@ function quantizeImageData(imageData: ImageData, maxPaletteSize: number = 256): 
     let colorIndex = colorMap.get(key);
     
     if (colorIndex === undefined) {
-      if (palette.length / 4 >= maxPaletteSize) {
+      if (paletteRGBA.length / 4 >= maxPaletteSize) {
         let minDist = Infinity;
         let nearest = 0;
-        for (let j = 0; j < palette.length; j += 4) {
-          const dr = r - palette[j];
-          const dg = g - palette[j + 1];
-          const db = b - palette[j + 2];
+        for (let j = 0; j < paletteRGBA.length; j += 4) {
+          if (paletteRGBA[j + 3] < 128) continue;
+          const dr = r - paletteRGBA[j];
+          const dg = g - paletteRGBA[j + 1];
+          const db = b - paletteRGBA[j + 2];
           const dist = dr * dr + dg * dg + db * db;
           if (dist < minDist) {
             minDist = dist;
@@ -58,8 +64,8 @@ function quantizeImageData(imageData: ImageData, maxPaletteSize: number = 256): 
         }
         colorIndex = nearest;
       } else {
-        colorIndex = palette.length / 4;
-        palette.push(r, g, b, 255);
+        colorIndex = paletteRGBA.length / 4;
+        paletteRGBA.push(r, g, b, 255);
         colorMap.set(key, colorIndex);
       }
     }
@@ -67,14 +73,20 @@ function quantizeImageData(imageData: ImageData, maxPaletteSize: number = 256): 
     indices[i] = colorIndex;
   }
   
-  const actualColorCount = palette.length / 4;
+  const actualColorCount = paletteRGBA.length / 4;
   const paletteSize = nextPowerOf2(Math.max(actualColorCount, 2));
   
-  while (palette.length < paletteSize * 4) {
-    palette.push(0, 0, 0, 0);
+  while (paletteRGBA.length < paletteSize * 4) {
+    paletteRGBA.push(0, 0, 0, 0);
   }
   
-  return { indices, palette, paletteSize };
+  const palette: number[] = [];
+  for (let i = 0; i < paletteRGBA.length; i += 4) {
+    const rgb = (paletteRGBA[i] << 16) | (paletteRGBA[i + 1] << 8) | paletteRGBA[i + 2];
+    palette.push(rgb);
+  }
+  
+  return { indices, palette, paletteSize, transparentIndex };
 }
 
 export function encodeGIF(frames: AnimationFrame[], width: number, height: number): Uint8Array {
@@ -85,18 +97,14 @@ export function encodeGIF(frames: AnimationFrame[], width: number, height: numbe
     const frame = frames[i];
     const ctx = frame.canvas.getContext('2d')!;
     const imageData = ctx.getImageData(0, 0, width, height);
-    const { indices, palette, paletteSize } = quantizeImageData(imageData, 256);
-    
-    const paletteRGB: number[] = [];
-    for (let j = 0; j < paletteSize * 4; j += 4) {
-      paletteRGB.push(palette[j], palette[j + 1], palette[j + 2]);
-    }
+    const { indices, palette, transparentIndex } = quantizeImageData(imageData, 256);
     
     const delayCs = Math.max(2, Math.round(frame.delay / 10));
     gif.addFrame(0, 0, width, height, indices, {
-      palette: paletteRGB,
+      palette: palette,
       delay: delayCs,
       disposal: 2,
+      transparent: transparentIndex,
     });
   }
   
