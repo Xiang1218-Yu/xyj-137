@@ -275,11 +275,9 @@ interface CanvasState {
     locked?: boolean;
     clearBeforeGenerate?: boolean;
   }) => string;
-  toggleLockItem: (id: string) => void;
   unlockMosaicGroup: (mosaicId: string) => void;
   removeMosaicGroup: (mosaicId: string) => void;
   findMosaicIdByItemId: (itemId: string) => string | null;
-  hasLockedItems: () => boolean;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -593,14 +591,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     return mosaicId;
   },
 
-  toggleLockItem: (id) => {
-    set(state => ({
-      items: state.items.map(e => 
-        e.id === id ? { ...e, locked: !e.locked } : e
-      ),
-    }));
-  },
-
   unlockMosaicGroup: (mosaicId) => {
     set(state => ({
       items: state.items.map(e => 
@@ -628,9 +618,5 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   findMosaicIdByItemId: (itemId) => {
     const item = get().items.find(e => e.id === itemId);
     return item?.mosaicId || null;
-  },
-
-  hasLockedItems: () => {
-    return get().items.some(e => e.locked);
   },
 }));

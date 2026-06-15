@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Sparkles, Grid3X3, Shuffle, Palette, ZoomIn, Trash2, Unlock, RefreshCcw, Lock } from 'lucide-react';
+import { Sparkles, Grid3X3, Shuffle, Palette, ZoomIn, Trash2, Unlock, RefreshCcw, Lock, X } from 'lucide-react';
 import { SHAPE_TEMPLATES, type ShapeType } from '@/utils/shapeTemplates';
 import { COLOR_CATEGORIES, type ColorCategory, type MosaicStyle, estimateEmojiCount } from '@/utils/mosaicGenerator';
-import { useCanvasStore } from '@/hooks/useCanvasStore';
+import { useCanvasStore, type EmojiItem } from '@/hooks/useCanvasStore';
 import { cn } from '@/lib/utils';
 
 const MOSAIC_STYLES: { key: MosaicStyle; label: string; icon: React.ReactNode; description: string }[] = [
@@ -29,6 +29,7 @@ export function MosaicControls({ onGenerate }: MosaicControlsProps) {
     canvasSize, 
     unlockMosaicGroup, 
     removeMosaicGroup,
+    removeItem,
     selectedId,
     findMosaicIdByItemId,
     items,
@@ -44,6 +45,7 @@ export function MosaicControls({ onGenerate }: MosaicControlsProps) {
   const [lockAfterGenerate, setLockAfterGenerate] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastMosaicId, setLastMosaicId] = useState<string | null>(null);
+  const [showItemList, setShowItemList] = useState(false);
 
   const activeMosaicId = useMemo(() => {
     if (lastMosaicId && items.some(e => e.mosaicId === lastMosaicId)) {
@@ -54,6 +56,11 @@ export function MosaicControls({ onGenerate }: MosaicControlsProps) {
     }
     return null;
   }, [lastMosaicId, selectedId, items, findMosaicIdByItemId]);
+
+  const mosaicItems = useMemo(() => {
+    if (!activeMosaicId) return [];
+    return items.filter(e => e.mosaicId === activeMosaicId);
+  }, [activeMosaicId, items]);
 
   const hasLockedItems = useMemo(() => {
     if (!activeMosaicId) return false;
@@ -95,8 +102,13 @@ export function MosaicControls({ onGenerate }: MosaicControlsProps) {
     if (activeMosaicId) {
       removeMosaicGroup(activeMosaicId);
       setLastMosaicId(null);
+      setShowItemList(false);
     }
   }, [activeMosaicId, removeMosaicGroup]);
+
+  const handleRemoveItem = useCallback((itemId: string) => {
+    removeItem(itemId);
+  }, [removeItem]);
 
   return (
     <div className="flex flex-col h-full">
@@ -264,7 +276,7 @@ export function MosaicControls({ onGenerate }: MosaicControlsProps) {
             <label className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl cursor-pointer hover:from-gray-100 hover:to-gray-200 transition-all">
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-blue-500" />
-                <span className="text-sm text-gray-700">生成后锁定拼贴元素</span>
+                <span className="text-sm text-gray-700">生成后不可点击</span>
               </div>
               <div 
                 onClick={() => setLockAfterGenerate(!lockAfterGenerate)}
@@ -336,37 +348,72 @@ export function MosaicControls({ onGenerate }: MosaicControlsProps) {
           </div>
         </div>
 
-        {activeMosaicId && (
+        {activeMosaicId && mosaicItems.length > 0 && (
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-purple-500" />
               拼贴组操作
+              <span className="text-xs font-normal text-gray-400 ml-auto">{mosaicItems.length} 个元素</span>
             </h4>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              {hasLockedItems && (
+                <button
+                  onClick={handleUnlock}
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-medium text-sm bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+                >
+                  <Unlock className="w-3.5 h-3.5" />
+                  解锁
+                </button>
+              )}
               <button
-                onClick={handleUnlock}
+                onClick={() => setShowItemList(!showItemList)}
                 className={cn(
-                  "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-medium text-sm transition-all",
-                  hasLockedItems
-                    ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  "flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-medium text-sm transition-all",
+                  showItemList
+                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 )}
-                disabled={!hasLockedItems}
               >
-                <Unlock className="w-4 h-4" />
-                {hasLockedItems ? '全部解锁' : '已解锁'}
+                <Trash2 className="w-3.5 h-3.5" />
+                {showItemList ? '收起' : '逐个删除'}
               </button>
               <button
                 onClick={handleRemove}
-                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-medium text-sm bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-medium text-sm bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5" />
                 删除整组
               </button>
             </div>
-            <p className="text-xs text-gray-400 text-center">
-              {hasLockedItems ? '点击「全部解锁」后可自由调整每个表情' : '可以自由拖动和调整每个表情'}
-            </p>
+            
+            {hasLockedItems && (
+              <p className="text-xs text-gray-400 text-center">
+                元素当前不可点击，点击「解锁」后可自由拖动调整
+              </p>
+            )}
+            
+            {showItemList && mosaicItems.length > 0 && (
+              <div className="max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50">
+                <div className="grid grid-cols-8 gap-1 p-2">
+                  {mosaicItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="relative aspect-square flex items-center justify-center bg-white rounded-lg hover:bg-red-50 group transition-colors"
+                    >
+                      <span className="text-lg">
+                        {item.type === 'emoji' ? (item as EmojiItem).emoji : '📝'}
+                      </span>
+                      <button
+                        onClick={() => handleRemoveItem(item.id)}
+                        className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
