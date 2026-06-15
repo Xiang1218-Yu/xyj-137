@@ -7,6 +7,54 @@ export type CanvasItemType = 'emoji' | 'text';
 export type BackgroundMode = 'solid' | 'gradient' | 'pattern';
 export type PatternType = 'dots' | 'grid' | 'lines' | 'diagonal' | 'waves' | 'zigzag';
 
+export type AnimationPreset = 'none' | 'rotate' | 'bounce' | 'shake' | 'appear' | 'pulse' | 'swing' | 'float';
+export type AnimationExportFormat = 'gif' | 'apng';
+
+export interface AnimationConfig {
+  preset: AnimationPreset;
+  speed: number;
+  intensity: number;
+  delay: number;
+  loop: boolean;
+}
+
+export const DEFAULT_ANIMATION_CONFIG: AnimationConfig = {
+  preset: 'none',
+  speed: 1,
+  intensity: 1,
+  delay: 0,
+  loop: true,
+};
+
+export const ANIMATION_PRESETS: { id: AnimationPreset; name: string; icon: string; description: string }[] = [
+  { id: 'none', name: '无动画', icon: '⏹️', description: '静态显示' },
+  { id: 'rotate', name: '旋转', icon: '🔄', description: '持续旋转' },
+  { id: 'bounce', name: '跳动', icon: '⬆️', description: '上下跳动' },
+  { id: 'shake', name: '抖动', icon: '📳', description: '左右抖动' },
+  { id: 'appear', name: '出现', icon: '✨', description: '淡入放大出现' },
+  { id: 'pulse', name: '脉冲', icon: '💗', description: '缩放脉冲' },
+  { id: 'swing', name: '摇摆', icon: '🎐', description: '左右摇摆' },
+  { id: 'float', name: '漂浮', icon: '🎈', description: '上下漂浮' },
+];
+
+export interface AnimationSettings {
+  frameCount: number;
+  frameDelay: number;
+  format: AnimationExportFormat;
+  quality: number;
+  isPlaying: boolean;
+  currentFrame: number;
+}
+
+export const DEFAULT_ANIMATION_SETTINGS: AnimationSettings = {
+  frameCount: 30,
+  frameDelay: 50,
+  format: 'gif',
+  quality: 10,
+  isPlaying: false,
+  currentFrame: 0,
+};
+
 export interface BaseCanvasItem {
   id: string;
   type: CanvasItemType;
@@ -17,6 +65,7 @@ export interface BaseCanvasItem {
   zIndex: number;
   locked?: boolean;
   mosaicId?: string;
+  animation?: AnimationConfig;
 }
 
 export interface EmojiItem extends BaseCanvasItem {
@@ -243,6 +292,7 @@ interface CanvasState {
   historyIndex: number;
   canvasSize: { width: number; height: number };
   background: CanvasBackground;
+  animationSettings: AnimationSettings;
   
   addEmoji: (emoji: string) => void;
   addText: (text?: string) => void;
@@ -278,6 +328,12 @@ interface CanvasState {
   unlockMosaicGroup: (mosaicId: string) => void;
   removeMosaicGroup: (mosaicId: string) => void;
   findMosaicIdByItemId: (itemId: string) => string | null;
+  setItemAnimation: (id: string, animation: Partial<AnimationConfig>) => void;
+  setAllItemsAnimation: (animation: Partial<AnimationConfig>) => void;
+  updateAnimationSettings: (settings: Partial<AnimationSettings>) => void;
+  playAnimation: () => void;
+  pauseAnimation: () => void;
+  setCurrentFrame: (frame: number | ((prev: number) => number)) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -289,6 +345,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   historyIndex: 0,
   canvasSize: { width: 400, height: 400 },
   background: DEFAULT_BACKGROUND,
+  animationSettings: { ...DEFAULT_ANIMATION_SETTINGS },
 
   addEmoji: (emoji: string) => {
     const { items, canvasSize } = get();
@@ -618,5 +675,59 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   findMosaicIdByItemId: (itemId) => {
     const item = get().items.find(e => e.id === itemId);
     return item?.mosaicId || null;
+  },
+
+  setItemAnimation: (id, animation) => {
+    set(state => ({
+      items: state.items.map(e => {
+        if (e.id !== id) return e;
+        const currentAnim = e.animation || { ...DEFAULT_ANIMATION_CONFIG };
+        return {
+          ...e,
+          animation: { ...currentAnim, ...animation },
+        };
+      }),
+    }));
+    get().saveToHistory();
+  },
+
+  setAllItemsAnimation: (animation) => {
+    set(state => ({
+      items: state.items.map(e => {
+        const currentAnim = e.animation || { ...DEFAULT_ANIMATION_CONFIG };
+        return {
+          ...e,
+          animation: { ...currentAnim, ...animation },
+        };
+      }),
+    }));
+    get().saveToHistory();
+  },
+
+  updateAnimationSettings: (settings) => {
+    set(state => ({
+      animationSettings: { ...state.animationSettings, ...settings },
+    }));
+  },
+
+  playAnimation: () => {
+    set(state => ({
+      animationSettings: { ...state.animationSettings, isPlaying: true },
+    }));
+  },
+
+  pauseAnimation: () => {
+    set(state => ({
+      animationSettings: { ...state.animationSettings, isPlaying: false },
+    }));
+  },
+
+  setCurrentFrame: (frame) => {
+    set(state => ({
+      animationSettings: {
+        ...state.animationSettings,
+        currentFrame: typeof frame === 'function' ? frame(state.animationSettings.currentFrame) : frame,
+      },
+    }));
   },
 }));

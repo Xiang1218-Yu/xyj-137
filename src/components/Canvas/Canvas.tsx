@@ -1,7 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { CanvasEmoji } from './CanvasEmoji';
 import { CanvasText } from './CanvasText';
 import { useCanvasStore } from '@/hooks/useCanvasStore';
-import type { EmojiItem, TextItem, CanvasBackground, PatternBackground, GradientBackground } from '@/hooks/useCanvasStore';
+import type { EmojiItem, TextItem, CanvasBackground, PatternBackground, GradientBackground, CanvasItem } from '@/hooks/useCanvasStore';
+import { calculateFrameTransform } from '@/utils/animationUtils';
 
 interface CanvasProps {
   canvasRef: React.RefObject<HTMLDivElement | null>;
@@ -83,7 +85,7 @@ function buildPatternCSS(bg: PatternBackground): { backgroundImage: string; back
   }
 }
 
-function buildBackgroundStyles(bg: CanvasBackground): React.CSSProperties {
+export function buildBackgroundStyles(bg: CanvasBackground): React.CSSProperties {
   const opacity = bg.opacity ?? 1;
 
   if (bg.mode === 'solid') {
@@ -123,8 +125,86 @@ function buildBackgroundStyles(bg: CanvasBackground): React.CSSProperties {
   return {};
 }
 
+interface AnimatedCanvasItemProps {
+  item: CanvasItem;
+  isSelected: boolean;
+  frameIndex: number;
+  totalFrames: number;
+  isAnimating: boolean;
+}
+
+function AnimatedCanvasItem({ item, isSelected, frameIndex, totalFrames, isAnimating }: AnimatedCanvasItemProps) {
+  const transform = isAnimating && item.animation
+    ? calculateFrameTransform(item, frameIndex, totalFrames)
+    : { x: item.x, y: item.y, scale: item.scale, rotation: item.rotation, opacity: 1 };
+
+  const commonStyle: React.CSSProperties = {
+    position: 'absolute',
+    left: transform.x,
+    top: transform.y,
+    zIndex: item.zIndex,
+    transform: `rotate(${transform.rotation}deg) scale(${transform.scale})`,
+    transformOrigin: 'center center',
+    opacity: transform.opacity,
+    transition: isAnimating ? 'none' : undefined,
+  };
+
+  if (item.type === 'emoji') {
+    const emojiItem = item as EmojiItem;
+    const size = 80;
+    return (
+      <div style={{ ...commonStyle, width: size, height: size }}>
+        <div style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: size * 0.8,
+          lineHeight: 1,
+        }}>
+          {emojiItem.emoji}
+        </div>
+        {isSelected && (
+          <div className="absolute inset-0 border-2 border-dashed border-purple-400 rounded-lg pointer-events-none animate-pulse" />
+        )}
+      </div>
+    );
+  } else {
+    const textItem = item as TextItem;
+    const { style } = textItem;
+    const fontSize = style.fontSize;
+    const textShadow = style.shadowBlur > 0 || style.shadowOffsetX !== 0 || style.shadowOffsetY !== 0
+      ? `${style.shadowOffsetX}px ${style.shadowOffsetY}px ${style.shadowBlur}px ${style.shadowColor}`
+      : 'none';
+
+    return (
+      <div style={commonStyle}>
+        <div style={{
+          fontFamily: style.fontFamily,
+          fontSize,
+          color: style.color,
+          textShadow,
+          WebkitTextStroke: style.strokeWidth > 0 ? `${style.strokeWidth}px ${style.strokeColor}` : 'none',
+          paintOrder: 'stroke fill',
+          lineHeight: 1.2,
+          whiteSpace: 'nowrap',
+          fontWeight: 'bold',
+        }}>
+          {textItem.text}
+        </div>
+        {isSelected && (
+          <div className="absolute inset-0 border-2 border-dashed border-purple-400 rounded-lg pointer-events-none animate-pulse" />
+        )}
+      </div>
+    );
+  }
+}
+
 export function Canvas({ canvasRef }: CanvasProps) {
-  const { items, selectedId, selectItem, canvasSize, background } = useCanvasStore();
+  const { items, selectedId, selectItem, canvasSize, background, animationSettings, setCurrentFrame } = useCanvasStore();
+  const animationFrameRef = useRef<number | null>(null);
+  const lastUpdateRef = useRef<number>(0);
 
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -134,6 +214,34 @@ export function Canvas({ canvasRef }: CanvasProps) {
 
   const sortedItems = [...items].sort((a, b) => a.zIndex - b.zIndex);
   const bgStyles = buildBackgroundStyles(background);
+
+  const { isPlaying, frameCount, frameDelay, currentFrame } = animationSettings;
+
+  useEffect(() => {
+    if (!isPlaying) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return;
+    }
+
+    const animate = (timestamp: number) => {
+      if (timestamp - lastUpdateRef.current >= frameDelay) {
+        lastUpdateRef.current = timestamp;
+        setCurrentFrame((currentFrame + 1) % frameCount);
+      }
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isPlaying, frameCount, frameDelay, currentFrame, setCurrentFrame]);
 
   return (
     <div className="flex flex-col items-center gap-4 w-full">
@@ -150,28 +258,44 @@ export function Canvas({ canvasRef }: CanvasProps) {
         >
           <div className="absolute inset-4 border-2 border-dashed border-purple-200/50 rounded-2xl pointer-events-none" />
           
-          {sortedItems.map((item) => {
-            const isSelected = selectedId === item.id;
-            if (item.type === 'emoji') {
+          {isPlaying ? (
+            sortedItems.map((item) => {
+              const isSelected = selectedId === item.id;
               return (
-                <CanvasEmoji
+                <AnimatedCanvasItem
                   key={item.id}
-                  item={item as EmojiItem}
+                  item={item}
                   isSelected={isSelected}
+                  frameIndex={currentFrame}
+                  totalFrames={frameCount}
+                  isAnimating={isPlaying}
                 />
               );
-            }
-            if (item.type === 'text') {
-              return (
-                <CanvasText
-                  key={item.id}
-                  item={item as TextItem}
-                  isSelected={isSelected}
-                />
-              );
-            }
-            return null;
-          })}
+            })
+          ) : (
+            sortedItems.map((item) => {
+              const isSelected = selectedId === item.id;
+              if (item.type === 'emoji') {
+                return (
+                  <CanvasEmoji
+                    key={item.id}
+                    item={item as EmojiItem}
+                    isSelected={isSelected}
+                  />
+                );
+              }
+              if (item.type === 'text') {
+                return (
+                  <CanvasText
+                    key={item.id}
+                    item={item as TextItem}
+                    isSelected={isSelected}
+                  />
+                );
+              }
+              return null;
+            })
+          )}
           
           {items.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none">

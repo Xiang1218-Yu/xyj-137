@@ -1,9 +1,14 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { EmojiPicker } from '@/components/EmojiPicker/EmojiPicker';
 import { Canvas } from '@/components/Canvas/Canvas';
 import { ControlPanel } from '@/components/ControlPanel/ControlPanel';
+import { AnimationPanel } from '@/components/AnimationPanel/AnimationPanel';
 import { Toolbar } from '@/components/Toolbar/Toolbar';
 import { useCanvasStore } from '@/hooks/useCanvasStore';
+import { Sliders, Wand2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+type RightPanelTab = 'properties' | 'animation';
 
 export default function Home() {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -11,6 +16,7 @@ export default function Home() {
   const redo = useCanvasStore(state => state.redo);
   const selectedId = useCanvasStore(state => state.selectedId);
   const removeItem = useCanvasStore(state => state.removeItem);
+  const [activeTab, setActiveTab] = useState<RightPanelTab>('animation');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -62,7 +68,7 @@ export default function Home() {
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">
                   Emoji 合成器
                 </h1>
-                <p className="text-sm text-gray-500">自由组合，创造独一无二的表情</p>
+                <p className="text-sm text-gray-500">自由组合，创造独一无二的表情 · 支持动画导出</p>
               </div>
             </div>
             
@@ -90,15 +96,50 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="col-span-3 h-full min-h-0">
-                <ControlPanel />
+              <div className="col-span-3 h-full min-h-0 flex flex-col">
+                <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-white/60 backdrop-blur-sm rounded-2xl shadow-md border border-white/50 mb-3">
+                  <button
+                    onClick={() => setActiveTab('properties')}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-sm font-medium transition-all",
+                      activeTab === 'properties'
+                        ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm"
+                        : "text-gray-600 hover:text-purple-600 hover:bg-white/50"
+                    )}
+                  >
+                    <Sliders className="w-4 h-4" />
+                    <span>属性</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('animation')}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-sm font-medium transition-all",
+                      activeTab === 'animation'
+                        ? "bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-sm"
+                        : "text-gray-600 hover:text-pink-600 hover:bg-white/50"
+                    )}
+                  >
+                    <Wand2 className="w-4 h-4" />
+                    <span>动画</span>
+                  </button>
+                </div>
+
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  {activeTab === 'properties' ? (
+                    <ControlPanel />
+                  ) : (
+                    <div className="h-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 overflow-hidden p-4">
+                      <AnimationPanel />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </main>
 
         <footer className="py-4 px-8 text-center text-sm text-gray-400 flex-shrink-0">
-          <p>🎨 尽情发挥创意，制作属于你的专属表情</p>
+          <p>🎨 尽情发挥创意，制作属于你的专属表情 · 支持 GIF/APNG 动画导出</p>
         </footer>
       </div>
     </div>
