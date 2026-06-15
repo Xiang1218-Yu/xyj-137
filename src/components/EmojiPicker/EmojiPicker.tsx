@@ -3,8 +3,9 @@ import { Search } from 'lucide-react';
 import { emojiCategories } from '@/utils/emojiData';
 import { useCanvasStore } from '@/hooks/useCanvasStore';
 import { cn } from '@/lib/utils';
+import { MosaicControls } from '@/components/MosaicPanel/MosaicPanel';
 
-type PickerTab = 'emoji' | 'text';
+type PickerTab = 'emoji' | 'text' | 'mosaic';
 
 export function EmojiPicker() {
   const [activeTab, setActiveTab] = useState<PickerTab>('emoji');
@@ -69,6 +70,17 @@ export function EmojiPicker() {
             )}
           >
             🔤 文字
+          </button>
+          <button
+            onClick={() => setActiveTab('mosaic')}
+            className={cn(
+              "flex-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+              activeTab === 'mosaic'
+                ? "bg-white text-purple-600 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            )}
+          >
+            ✨ 拼贴
           </button>
         </div>
 
@@ -138,7 +150,10 @@ export function EmojiPicker() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className={cn(
+        "flex-1",
+        activeTab === 'mosaic' ? 'overflow-hidden' : 'overflow-y-auto p-3'
+      )}>
         {activeTab === 'emoji' && (
           <div className="grid grid-cols-6 gap-2">
             {filteredEmojis.map((emoji, index) => (
@@ -175,6 +190,12 @@ export function EmojiPicker() {
           </div>
         )}
 
+        {activeTab === 'mosaic' && (
+          <div className="h-full p-4">
+            <MosaicControls />
+          </div>
+        )}
+
         {activeTab === 'emoji' && filteredEmojis.length === 0 && (
           <div className="text-center text-gray-400 py-8">
             <p className="text-4xl mb-2">🔍</p>
@@ -185,7 +206,9 @@ export function EmojiPicker() {
 
       <div className="p-3 bg-gradient-to-r from-pink-50 to-purple-50 border-t border-gray-100">
         <p className="text-xs text-gray-500 text-center">
-          {activeTab === 'emoji' ? '点击表情添加到画布' : '点击或输入文字添加到画布'}
+          {activeTab === 'emoji' && '点击表情添加到画布'}
+          {activeTab === 'text' && '点击或输入文字添加到画布'}
+          {activeTab === 'mosaic' && '设置参数后点击生成拼贴画'}
         </p>
       </div>
     </div>

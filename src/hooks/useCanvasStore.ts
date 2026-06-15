@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { generateMosaicEmojis } from '@/utils/mosaicGenerator';
+import type { ShapeType } from '@/utils/shapeTemplates';
+import type { ColorCategory, MosaicStyle } from '@/utils/mosaicGenerator';
 
 export type CanvasItemType = 'emoji' | 'text';
 export type BackgroundMode = 'solid' | 'gradient' | 'pattern';
@@ -259,6 +262,15 @@ interface CanvasState {
   updateGradientBackground: (updates: Partial<GradientBackground>) => void;
   updatePatternBackground: (updates: Partial<PatternBackground>) => void;
   applyBackgroundPreset: (preset: BackgroundPreset) => void;
+  generateMosaic: (options: {
+    shape: ShapeType;
+    colorCategory: ColorCategory;
+    cellSize: number;
+    style: MosaicStyle;
+    emojiScale?: number;
+    rotationVariation?: number;
+    offsetVariation?: number;
+  }) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -534,5 +546,33 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   applyBackgroundPreset: (preset: BackgroundPreset) => {
     set({ background: { ...preset.background } });
+  },
+
+  generateMosaic: (options) => {
+    const { canvasSize } = get();
+    
+    const mosaicItems = generateMosaicEmojis({
+      ...options,
+      canvasWidth: canvasSize.width,
+      canvasHeight: canvasSize.height,
+    });
+
+    set(state => {
+      const maxZ = state.items.length > 0 ? Math.max(...state.items.map(e => e.zIndex)) : 0;
+      const adjustedItems = mosaicItems.map((item, index) => ({
+        ...item,
+        zIndex: maxZ + 1 + index,
+      }));
+      
+      const newItems = [...state.items, ...adjustedItems];
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      
+      return {
+        items: newItems,
+        selectedId: null,
+        history: [...newHistory, newItems],
+        historyIndex: newHistory.length,
+      };
+    });
   },
 }));
