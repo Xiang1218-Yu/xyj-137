@@ -232,6 +232,109 @@ export async function generateAnimationFrames(
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
         ctx.fillText(item.text, 0, 0);
+      } else if (item.type === 'shape') {
+        const { style, shapeType, width, height } = item;
+        const scaledWidth = width * transform.scale;
+        const scaledHeight = height * transform.scale;
+        
+        const centerX = transform.x + scaledWidth / 2;
+        const centerY = transform.y + scaledHeight / 2;
+        
+        ctx.translate(centerX, centerY);
+        ctx.rotate((transform.rotation * Math.PI) / 180);
+        ctx.globalAlpha = style.opacity;
+        
+        ctx.fillStyle = style.fill;
+        ctx.strokeStyle = style.stroke;
+        ctx.lineWidth = style.strokeWidth;
+        
+        const halfW = scaledWidth / 2;
+        const halfH = scaledHeight / 2;
+        
+        if (shapeType === 'rectangle') {
+          const r = Math.min(style.borderRadius, halfW, halfH);
+          ctx.beginPath();
+          ctx.roundRect(-halfW, -halfH, scaledWidth, scaledHeight, r);
+          ctx.fill();
+          if (style.strokeWidth > 0) ctx.stroke();
+        } else if (shapeType === 'circle') {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, halfW, halfH, 0, 0, Math.PI * 2);
+          ctx.fill();
+          if (style.strokeWidth > 0) ctx.stroke();
+        } else if (shapeType === 'ellipse') {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, halfW, halfH, 0, 0, Math.PI * 2);
+          ctx.fill();
+          if (style.strokeWidth > 0) ctx.stroke();
+        } else if (shapeType === 'triangle') {
+          ctx.beginPath();
+          ctx.moveTo(0, -halfH);
+          ctx.lineTo(halfW, halfH);
+          ctx.lineTo(-halfW, halfH);
+          ctx.closePath();
+          ctx.fill();
+          if (style.strokeWidth > 0) ctx.stroke();
+        } else if (shapeType === 'star') {
+          const outerR = Math.min(halfW, halfH);
+          const innerR = outerR * 0.4;
+          const spikes = 5;
+          ctx.beginPath();
+          for (let i = 0; i < spikes * 2; i++) {
+            const r = i % 2 === 0 ? outerR : innerR;
+            const angle = (i * Math.PI) / spikes - Math.PI / 2;
+            const x = r * Math.cos(angle);
+            const y = r * Math.sin(angle);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+          ctx.fill();
+          if (style.strokeWidth > 0) ctx.stroke();
+        } else if (shapeType === 'line') {
+          ctx.beginPath();
+          ctx.moveTo(-halfW, 0);
+          ctx.lineTo(halfW, 0);
+          ctx.lineWidth = style.strokeWidth || 2;
+          ctx.lineCap = 'round';
+          ctx.stroke();
+        }
+      } else if (item.type === 'brush') {
+        const { points, style } = item;
+        
+        if (points.length < 2) {
+          ctx.restore();
+          continue;
+        }
+        
+        const centerX = transform.x;
+        const centerY = transform.y;
+        
+        ctx.translate(centerX, centerY);
+        ctx.rotate((transform.rotation * Math.PI) / 180);
+        ctx.globalAlpha = style.opacity;
+        
+        ctx.strokeStyle = style.color;
+        ctx.lineWidth = style.strokeWidth * transform.scale;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        ctx.beginPath();
+        const smoothness = style.smoothness || 0.5;
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          const prev = points[i - 1];
+          const curr = points[i];
+          if (smoothness > 0 && i < points.length - 1) {
+            const next = points[i + 1];
+            const cpx = curr.x + (next.x - prev.x) * smoothness * 0.5;
+            const cpy = curr.y + (next.y - prev.y) * smoothness * 0.5;
+            ctx.quadraticCurveTo(curr.x, curr.y, cpx, cpy);
+          } else {
+            ctx.lineTo(curr.x, curr.y);
+          }
+        }
+        ctx.stroke();
       }
       
       ctx.restore();

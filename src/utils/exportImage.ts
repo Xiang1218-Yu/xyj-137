@@ -3,6 +3,8 @@ import type {
   CanvasItem, 
   EmojiItem, 
   TextItem, 
+  ShapeItem,
+  BrushItem,
   CanvasBackground, 
   GradientBackground,
   PatternBackground,
@@ -185,6 +187,140 @@ export async function exportItemsAsPng(
         white-space: nowrap;
       `;
       el.textContent = textItem.text;
+      container.appendChild(el);
+    } else if (item.type === 'shape') {
+      const shapeItem = item as ShapeItem;
+      const { style, shapeType, width, height, x, y, rotation, zIndex, scale } = shapeItem;
+      const scaledWidth = width * scale;
+      const scaledHeight = height * scale;
+      
+      const el = document.createElement('div');
+      el.style.cssText = `
+        position: absolute;
+        left: ${x}px;
+        top: ${y}px;
+        z-index: ${zIndex};
+        transform: rotate(${rotation}deg);
+        opacity: ${style.opacity};
+      `;
+
+      if (shapeType === 'rectangle') {
+        el.style.width = `${scaledWidth}px`;
+        el.style.height = `${scaledHeight}px`;
+        el.style.backgroundColor = style.fill;
+        el.style.border = `${style.strokeWidth}px solid ${style.stroke}`;
+        el.style.borderRadius = `${style.borderRadius}px`;
+      } else if (shapeType === 'circle') {
+        el.style.width = `${scaledWidth}px`;
+        el.style.height = `${scaledHeight}px`;
+        el.style.backgroundColor = style.fill;
+        el.style.border = `${style.strokeWidth}px solid ${style.stroke}`;
+        el.style.borderRadius = '50%';
+      } else if (shapeType === 'ellipse') {
+        el.style.width = `${scaledWidth}px`;
+        el.style.height = `${scaledHeight}px`;
+        el.style.backgroundColor = style.fill;
+        el.style.border = `${style.strokeWidth}px solid ${style.stroke}`;
+        el.style.borderRadius = '50% / 50%';
+      } else if (shapeType === 'triangle' || shapeType === 'star' || shapeType === 'line') {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', String(scaledWidth));
+        svg.setAttribute('height', String(scaledHeight));
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        
+        if (shapeType === 'triangle') {
+          const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          polygon.setAttribute('points', `${width / 2},0 ${width},${height} 0,${height}`);
+          polygon.setAttribute('fill', style.fill);
+          polygon.setAttribute('stroke', style.stroke);
+          polygon.setAttribute('stroke-width', String(style.strokeWidth));
+          svg.appendChild(polygon);
+        } else if (shapeType === 'star') {
+          const cx = width / 2;
+          const cy = height / 2;
+          const outerR = Math.min(width, height) / 2;
+          const innerR = outerR * 0.4;
+          const spikes = 5;
+          let starPoints = '';
+          for (let i = 0; i < spikes * 2; i++) {
+            const r = i % 2 === 0 ? outerR : innerR;
+            const angle = (i * Math.PI) / spikes - Math.PI / 2;
+            const px = cx + r * Math.cos(angle);
+            const py = cy + r * Math.sin(angle);
+            starPoints += `${px},${py} `;
+          }
+          const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          polygon.setAttribute('points', starPoints.trim());
+          polygon.setAttribute('fill', style.fill);
+          polygon.setAttribute('stroke', style.stroke);
+          polygon.setAttribute('stroke-width', String(style.strokeWidth));
+          svg.appendChild(polygon);
+        } else if (shapeType === 'line') {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', '0');
+          line.setAttribute('y1', String(height / 2));
+          line.setAttribute('x2', String(width));
+          line.setAttribute('y2', String(height / 2));
+          line.setAttribute('stroke', style.stroke);
+          line.setAttribute('stroke-width', String(style.strokeWidth || 2));
+          line.setAttribute('stroke-linecap', 'round');
+          svg.appendChild(line);
+        }
+        
+        el.appendChild(svg);
+      }
+      
+      container.appendChild(el);
+    } else if (item.type === 'brush') {
+      const brushItem = item as BrushItem;
+      const { points, style, x, y, rotation, zIndex, scale } = brushItem;
+      
+      if (points.length < 2) return;
+      
+      const xs = points.map(p => p.x);
+      const ys = points.map(p => p.y);
+      const boundsWidth = (Math.max(...xs) - Math.min(...xs) + style.strokeWidth * 2) * scale;
+      const boundsHeight = (Math.max(...ys) - Math.min(...ys) + style.strokeWidth * 2) * scale;
+      
+      const el = document.createElement('div');
+      el.style.cssText = `
+        position: absolute;
+        left: ${x}px;
+        top: ${y}px;
+        z-index: ${zIndex};
+        transform: rotate(${rotation}deg);
+      `;
+      
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', String(boundsWidth));
+      svg.setAttribute('height', String(boundsHeight));
+      svg.style.overflow = 'visible';
+      svg.style.opacity = String(style.opacity);
+      
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      let pathData = `M ${points[0].x} ${points[0].y}`;
+      const smoothness = style.smoothness || 0.5;
+      for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1];
+        const curr = points[i];
+        if (smoothness > 0 && i < points.length - 1) {
+          const next = points[i + 1];
+          const cpx = curr.x + (next.x - prev.x) * smoothness * 0.5;
+          const cpy = curr.y + (next.y - prev.y) * smoothness * 0.5;
+          pathData += ` Q ${curr.x} ${curr.y} ${cpx} ${cpy}`;
+        } else {
+          pathData += ` L ${curr.x} ${curr.y}`;
+        }
+      }
+      path.setAttribute('d', pathData);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', style.color);
+      path.setAttribute('stroke-width', String(style.strokeWidth * scale));
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(path);
+      
+      el.appendChild(svg);
       container.appendChild(el);
     }
   });

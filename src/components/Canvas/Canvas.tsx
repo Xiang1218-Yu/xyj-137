@@ -347,6 +347,7 @@ export function Canvas({ canvasRef }: CanvasProps) {
     setCurrentFrame,
     currentTool,
     shapeStyle,
+    brushStyle,
     addShape,
     addBrush,
     setCurrentTool,
@@ -360,6 +361,9 @@ export function Canvas({ canvasRef }: CanvasProps) {
   const isPlayingRef = useRef<boolean>(false);
 
   const [isDrawing, setIsDrawing] = useState(false);
+  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
+  const [drawEnd, setDrawEnd] = useState<{ x: number; y: number } | null>(null);
+  const [brushPoints, setBrushPoints] = useState<BrushPoint[]>([]);
   const drawStartRef = useRef<{ x: number; y: number } | null>(null);
   const drawEndRef = useRef<{ x: number; y: number } | null>(null);
   const brushPointsRef = useRef<BrushPoint[]>([]);
@@ -391,10 +395,14 @@ export function Canvas({ canvasRef }: CanvasProps) {
     const coords = getCanvasCoordinates(e);
     drawStartRef.current = coords;
     drawEndRef.current = coords;
+    setDrawStart(coords);
+    setDrawEnd(coords);
     setIsDrawing(true);
 
     if (isBrushTool) {
-      brushPointsRef.current = [{ x: coords.x, y: coords.y, pressure: 1 }];
+      const initialPoints = [{ x: coords.x, y: coords.y, pressure: 1 }];
+      brushPointsRef.current = initialPoints;
+      setBrushPoints(initialPoints);
     }
   }, [isDrawingTool, isBrushTool, selectItem, getCanvasCoordinates]);
 
@@ -403,15 +411,21 @@ export function Canvas({ canvasRef }: CanvasProps) {
 
     const coords = getCanvasCoordinates(e);
     drawEndRef.current = coords;
+    setDrawEnd(coords);
 
     if (isBrushTool) {
-      brushPointsRef.current.push({ x: coords.x, y: coords.y, pressure: 1 });
+      const newPoints = [...brushPointsRef.current, { x: coords.x, y: coords.y, pressure: 1 }];
+      brushPointsRef.current = newPoints;
+      setBrushPoints(newPoints);
     }
   }, [isDrawing, isBrushTool, getCanvasCoordinates]);
 
   const handleMouseUp = useCallback(() => {
     if (!isDrawing || !drawStartRef.current || !drawEndRef.current) {
       setIsDrawing(false);
+      setDrawStart(null);
+      setDrawEnd(null);
+      setBrushPoints([]);
       return;
     }
 
@@ -435,6 +449,9 @@ export function Canvas({ canvasRef }: CanvasProps) {
     drawStartRef.current = null;
     drawEndRef.current = null;
     brushPointsRef.current = [];
+    setDrawStart(null);
+    setDrawEnd(null);
+    setBrushPoints([]);
     setCurrentTool('select');
   }, [isDrawing, isShapeTool, isBrushTool, currentTool, addShape, addBrush, setCurrentTool]);
 
@@ -450,17 +467,17 @@ export function Canvas({ canvasRef }: CanvasProps) {
   }, [isDrawing, handleMouseUp]);
 
   const renderPreview = () => {
-    if (!isDrawing || !drawStartRef.current || !drawEndRef.current) return null;
+    if (!isDrawing || !drawStart || !drawEnd) return null;
 
-    const start = drawStartRef.current;
-    const end = drawEndRef.current;
+    const start = drawStart;
+    const end = drawEnd;
     const x = Math.min(start.x, end.x);
     const y = Math.min(start.y, end.y);
     const width = Math.abs(end.x - start.x);
     const height = Math.abs(end.y - start.y);
 
-    if (isBrushTool && brushPointsRef.current.length > 1) {
-      const points = brushPointsRef.current;
+    if (isBrushTool && brushPoints.length > 1) {
+      const points = brushPoints;
       let pathData = `M ${points[0].x} ${points[0].y}`;
       for (let i = 1; i < points.length; i++) {
         pathData += ` L ${points[i].x} ${points[i].y}`;
@@ -474,11 +491,11 @@ export function Canvas({ canvasRef }: CanvasProps) {
           <path
             d={pathData}
             fill="none"
-            stroke={useCanvasStore.getState().brushStyle.color}
-            strokeWidth={useCanvasStore.getState().brushStyle.strokeWidth}
+            stroke={brushStyle.color}
+            strokeWidth={brushStyle.strokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity={useCanvasStore.getState().brushStyle.opacity * 0.8}
+            opacity={brushStyle.opacity * 0.8}
           />
         </svg>
       );
