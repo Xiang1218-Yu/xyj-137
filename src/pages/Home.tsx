@@ -4,11 +4,14 @@ import { Canvas } from '@/components/Canvas/Canvas';
 import { ControlPanel } from '@/components/ControlPanel/ControlPanel';
 import { AnimationPanel } from '@/components/AnimationPanel/AnimationPanel';
 import { Toolbar } from '@/components/Toolbar/Toolbar';
+import { ShapeToolbar } from '@/components/ShapeToolbar/ShapeToolbar';
+import { MosaicPanel } from '@/components/MosaicPanel/MosaicPanel';
 import { useCanvasStore } from '@/hooks/useCanvasStore';
-import { Sliders, Wand2 } from 'lucide-react';
+import { Sliders, Wand2, Smile, Paintbrush, Grid3X3, Type } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type RightPanelTab = 'properties' | 'animation';
+type LeftPanelTab = 'emoji' | 'draw' | 'mosaic' | 'text';
 
 export default function Home() {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -16,7 +19,9 @@ export default function Home() {
   const redo = useCanvasStore(state => state.redo);
   const selectedId = useCanvasStore(state => state.selectedId);
   const removeItem = useCanvasStore(state => state.removeItem);
+  const addText = useCanvasStore(state => state.addText);
   const [activeTab, setActiveTab] = useState<RightPanelTab>('animation');
+  const [activeLeftTab, setActiveLeftTab] = useState<LeftPanelTab>('draw');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -83,8 +88,77 @@ export default function Home() {
         <main className="flex-1 min-h-0 px-8">
           <div className="max-w-7xl mx-auto h-full">
             <div className="grid grid-cols-12 gap-6 h-full">
-              <div className="col-span-3 h-full min-h-0">
-                <EmojiPicker />
+              <div className="col-span-3 h-full min-h-0 flex flex-col">
+                <div className="grid grid-cols-4 gap-1.5 p-1.5 bg-white/60 backdrop-blur-sm rounded-2xl shadow-md border border-white/50 mb-3">
+                  <button
+                    onClick={() => setActiveLeftTab('emoji')}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-1 py-2 px-2 rounded-xl text-xs font-medium transition-all",
+                      activeLeftTab === 'emoji'
+                        ? "bg-gradient-to-r from-yellow-400 to-orange-400 text-white shadow-sm"
+                        : "text-gray-600 hover:text-orange-600 hover:bg-white/50"
+                    )}
+                  >
+                    <Smile className="w-4 h-4" />
+                    <span>表情</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveLeftTab('draw')}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-1 py-2 px-2 rounded-xl text-xs font-medium transition-all",
+                      activeLeftTab === 'draw'
+                        ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm"
+                        : "text-gray-600 hover:text-purple-600 hover:bg-white/50"
+                    )}
+                  >
+                    <Paintbrush className="w-4 h-4" />
+                    <span>绘图</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveLeftTab('mosaic')}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-1 py-2 px-2 rounded-xl text-xs font-medium transition-all",
+                      activeLeftTab === 'mosaic'
+                        ? "bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-sm"
+                        : "text-gray-600 hover:text-green-600 hover:bg-white/50"
+                    )}
+                  >
+                    <Grid3X3 className="w-4 h-4" />
+                    <span>拼贴</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveLeftTab('text');
+                      addText();
+                    }}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-1 py-2 px-2 rounded-xl text-xs font-medium transition-all",
+                      activeLeftTab === 'text'
+                        ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-sm"
+                        : "text-gray-600 hover:text-blue-600 hover:bg-white/50"
+                    )}
+                  >
+                    <Type className="w-4 h-4" />
+                    <span>文字</span>
+                  </button>
+                </div>
+
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  {activeLeftTab === 'emoji' && <EmojiPicker />}
+                  {activeLeftTab === 'draw' && <ShapeToolbar />}
+                  {activeLeftTab === 'mosaic' && (
+                    <div className="h-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 overflow-hidden p-4">
+                      <MosaicPanel />
+                    </div>
+                  )}
+                  {activeLeftTab === 'text' && (
+                    <div className="h-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 overflow-hidden p-4 flex flex-col items-center justify-center">
+                      <Type className="w-12 h-12 text-blue-400 mb-3" />
+                      <p className="text-sm text-gray-600 text-center mb-2">文字已添加到画布</p>
+                      <p className="text-xs text-gray-400 text-center">双击画布上的文字进行编辑</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="col-span-6 flex flex-col h-full min-h-0">

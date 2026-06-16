@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import { generateMosaicEmojis } from '@/utils/mosaicGenerator';
-import type { ShapeType } from '@/utils/shapeTemplates';
+import type { ShapeType as MosaicShapeType } from '@/utils/shapeTemplates';
 import type { ColorCategory, MosaicStyle } from '@/utils/mosaicGenerator';
 
-export type CanvasItemType = 'emoji' | 'text';
+export type CanvasItemType = 'emoji' | 'text' | 'shape' | 'brush';
+export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'line' | 'ellipse' | 'star';
+export type DrawingTool = 'select' | 'rectangle' | 'circle' | 'triangle' | 'line' | 'ellipse' | 'star' | 'brush';
 export type BackgroundMode = 'solid' | 'gradient' | 'pattern';
 export type PatternType = 'dots' | 'grid' | 'lines' | 'diagonal' | 'waves' | 'zigzag';
 
@@ -91,7 +93,57 @@ export interface TextItem extends BaseCanvasItem {
   style: TextStyle;
 }
 
-export type CanvasItem = EmojiItem | TextItem;
+export interface ShapeStyle {
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  borderRadius: number;
+  opacity: number;
+}
+
+export interface ShapeItem extends BaseCanvasItem {
+  type: 'shape';
+  shapeType: ShapeType;
+  width: number;
+  height: number;
+  style: ShapeStyle;
+}
+
+export interface BrushPoint {
+  x: number;
+  y: number;
+  pressure: number;
+}
+
+export interface BrushStyle {
+  color: string;
+  strokeWidth: number;
+  opacity: number;
+  smoothness: number;
+}
+
+export interface BrushItem extends BaseCanvasItem {
+  type: 'brush';
+  points: BrushPoint[];
+  style: BrushStyle;
+}
+
+export type CanvasItem = EmojiItem | TextItem | ShapeItem | BrushItem;
+
+export const DEFAULT_SHAPE_STYLE: ShapeStyle = {
+  fill: '#6366F1',
+  stroke: '#4F46E5',
+  strokeWidth: 2,
+  borderRadius: 0,
+  opacity: 1,
+};
+
+export const DEFAULT_BRUSH_STYLE: BrushStyle = {
+  color: '#333333',
+  strokeWidth: 3,
+  opacity: 1,
+  smoothness: 0.5,
+};
 
 export interface SolidBackground {
   mode: 'solid';
@@ -293,13 +345,23 @@ interface CanvasState {
   canvasSize: { width: number; height: number };
   background: CanvasBackground;
   animationSettings: AnimationSettings;
+  currentTool: DrawingTool;
+  shapeStyle: ShapeStyle;
+  brushStyle: BrushStyle;
   
   addEmoji: (emoji: string) => void;
   addText: (text?: string) => void;
+  addShape: (shapeType: ShapeType, x: number, y: number, width: number, height: number) => void;
+  addBrush: (points: BrushPoint[]) => void;
   removeItem: (id: string) => void;
   updateItem: (id: string, updates: Partial<CanvasItem>) => void;
   updateTextStyle: (id: string, styleUpdates: Partial<TextStyle>) => void;
+  updateShapeStyle: (id: string, styleUpdates: Partial<ShapeStyle>) => void;
+  updateBrushStyle: (id: string, styleUpdates: Partial<BrushStyle>) => void;
   selectItem: (id: string | null) => void;
+  setCurrentTool: (tool: DrawingTool) => void;
+  setShapeStyle: (style: Partial<ShapeStyle>) => void;
+  setBrushStyle: (style: Partial<BrushStyle>) => void;
   clearCanvas: () => void;
   undo: () => void;
   redo: () => void;
@@ -315,7 +377,7 @@ interface CanvasState {
   updatePatternBackground: (updates: Partial<PatternBackground>) => void;
   applyBackgroundPreset: (preset: BackgroundPreset) => void;
   generateMosaic: (options: {
-    shape: ShapeType;
+    shape: MosaicShapeType;
     colorCategory: ColorCategory;
     cellSize: number;
     style: MosaicStyle;
@@ -346,6 +408,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   canvasSize: { width: 400, height: 400 },
   background: DEFAULT_BACKGROUND,
   animationSettings: { ...DEFAULT_ANIMATION_SETTINGS },
+  currentTool: 'select',
+  shapeStyle: { ...DEFAULT_SHAPE_STYLE },
+  brushStyle: { ...DEFAULT_BRUSH_STYLE },
 
   addEmoji: (emoji: string) => {
     const { items, canvasSize } = get();
@@ -400,6 +465,76 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     });
   },
 
+  addShape: (shapeType: ShapeType, x: number, y: number, width: number, height: number) => {
+    const { items, shapeStyle } = get();
+    const maxZ = items.length > 0 ? Math.max(...items.map(e => e.zIndex)) : 0;
+    const newItem: ShapeItem = {
+      id: generateId(),
+      type: 'shape',
+      shapeType,
+      x,
+      y,
+      width,
+      height,
+      scale: 1,
+      rotation: 0,
+      zIndex: maxZ + 1,
+      style: { ...shapeStyle },
+    };
+    
+    set(state => {
+      const newItems = [...state.items, newItem];
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      return {
+        items: newItems,
+        selectedId: newItem.id,
+        history: [...newHistory, newItems],
+        historyIndex: newHistory.length,
+      };
+    });
+  },
+
+  addBrush: (points: BrushPoint[]) => {
+    if (points.length < 2) return;
+    
+    const { items, brushStyle } = get();
+    const maxZ = items.length > 0 ? Math.max(...items.map(e => e.zIndex)) : 0;
+    
+    const xs = points.map(p => p.x);
+    const ys = points.map(p => p.y);
+    const minX = Math.min(...xs);
+    const minY = Math.min(...ys);
+    
+    const adjustedPoints = points.map(p => ({
+      x: p.x - minX,
+      y: p.y - minY,
+      pressure: p.pressure,
+    }));
+    
+    const newItem: BrushItem = {
+      id: generateId(),
+      type: 'brush',
+      points: adjustedPoints,
+      x: minX,
+      y: minY,
+      scale: 1,
+      rotation: 0,
+      zIndex: maxZ + 1,
+      style: { ...brushStyle },
+    };
+    
+    set(state => {
+      const newItems = [...state.items, newItem];
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      return {
+        items: newItems,
+        selectedId: newItem.id,
+        history: [...newHistory, newItems],
+        historyIndex: newHistory.length,
+      };
+    });
+  },
+
   removeItem: (id: string) => {
     set(state => {
       const newItems = state.items.filter(e => e.id !== id);
@@ -433,8 +568,48 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     }));
   },
 
+  updateShapeStyle: (id: string, styleUpdates: Partial<ShapeStyle>) => {
+    set(state => ({
+      items: state.items.map(e => {
+        if (e.id !== id || e.type !== 'shape') return e;
+        return {
+          ...e,
+          style: { ...e.style, ...styleUpdates },
+        };
+      }),
+    }));
+  },
+
+  updateBrushStyle: (id: string, styleUpdates: Partial<BrushStyle>) => {
+    set(state => ({
+      items: state.items.map(e => {
+        if (e.id !== id || e.type !== 'brush') return e;
+        return {
+          ...e,
+          style: { ...e.style, ...styleUpdates },
+        };
+      }),
+    }));
+  },
+
   selectItem: (id: string | null) => {
     set({ selectedId: id });
+  },
+
+  setCurrentTool: (tool: DrawingTool) => {
+    set({ currentTool: tool, selectedId: null });
+  },
+
+  setShapeStyle: (style: Partial<ShapeStyle>) => {
+    set(state => ({
+      shapeStyle: { ...state.shapeStyle, ...style },
+    }));
+  },
+
+  setBrushStyle: (style: Partial<BrushStyle>) => {
+    set(state => ({
+      brushStyle: { ...state.brushStyle, ...style },
+    }));
   },
 
   clearCanvas: () => {
