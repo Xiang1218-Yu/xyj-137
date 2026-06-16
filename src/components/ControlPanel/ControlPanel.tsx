@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { 
   Move, 
   ZoomIn, 
@@ -213,8 +212,6 @@ function BackgroundPanel() {
     updatePatternBackground,
     applyBackgroundPreset,
   } = useCanvasStore();
-
-  const [activePresetTab, setActivePresetTab] = useState<BackgroundMode>('gradient');
 
   const currentOpacity = background.opacity ?? 1;
   const updateOpacity = (opacity: number) => {

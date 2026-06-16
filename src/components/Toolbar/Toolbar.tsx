@@ -13,7 +13,7 @@ import {
 import { useCanvasStore } from '@/hooks/useCanvasStore';
 import { exportEmojisAsPng, copyImageToClipboard, downloadImage } from '@/utils/exportImage';
 import { generateAnimationFrames, downloadGIF, downloadAPNG } from '@/utils/animationEncoder';
-import { buildBackgroundStyles } from '@/components/Canvas/Canvas';
+import { buildBackgroundStyles } from '@/utils/backgroundStyles';
 
 export function Toolbar() {
   const { items, clearCanvas, undo, redo, historyIndex, history, canvasSize, background, animationSettings } = useCanvasStore();

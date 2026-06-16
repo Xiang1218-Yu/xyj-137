@@ -1,8 +1,11 @@
 import { create } from 'zustand';
 
-export type CanvasItemType = 'emoji' | 'text';
+export type CanvasItemType = 'emoji' | 'text' | 'shape' | 'brush';
 export type BackgroundMode = 'solid' | 'gradient' | 'pattern';
 export type PatternType = 'dots' | 'grid' | 'lines' | 'diagonal' | 'waves' | 'zigzag';
+export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'line' | 'ellipse' | 'star';
+export type DrawingTool = 'select' | 'rectangle' | 'circle' | 'triangle' | 'line' | 'ellipse' | 'star' | 'brush';
+export type AnimationPreset = 'none' | 'rotate' | 'bounce' | 'shake' | 'appear' | 'pulse' | 'swing' | 'float';
 
 export interface BaseCanvasItem {
   id: string;
@@ -12,6 +15,9 @@ export interface BaseCanvasItem {
   scale: number;
   rotation: number;
   zIndex: number;
+  locked?: boolean;
+  mosaicId?: string;
+  animation?: AnimationConfig;
 }
 
 export interface EmojiItem extends BaseCanvasItem {
@@ -37,7 +43,60 @@ export interface TextItem extends BaseCanvasItem {
   style: TextStyle;
 }
 
-export type CanvasItem = EmojiItem | TextItem;
+export interface ShapeStyle {
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  borderRadius: number;
+  opacity: number;
+}
+
+export interface ShapeItem extends BaseCanvasItem {
+  type: 'shape';
+  shapeType: ShapeType;
+  width: number;
+  height: number;
+  style: ShapeStyle;
+}
+
+export interface BrushStyle {
+  color: string;
+  strokeWidth: number;
+  opacity: number;
+  smoothness: number;
+}
+
+export interface BrushPoint {
+  x: number;
+  y: number;
+  pressure?: number;
+}
+
+export interface BrushItem extends BaseCanvasItem {
+  type: 'brush';
+  points: BrushPoint[];
+  style: BrushStyle;
+  width: number;
+  height: number;
+}
+
+export type CanvasItem = EmojiItem | TextItem | ShapeItem | BrushItem;
+
+export interface AnimationConfig {
+  preset: AnimationPreset;
+  speed: number;
+  intensity: number;
+  delay: number;
+  loop: boolean;
+}
+
+export interface AnimationSettings {
+  isPlaying: boolean;
+  frameCount: number;
+  frameDelay: number;
+  currentFrame: number;
+  format: 'gif' | 'apng';
+}
 
 export interface SolidBackground {
   mode: 'solid';
@@ -72,6 +131,25 @@ export interface BackgroundPreset {
   preview: string;
 }
 
+export const DEFAULT_ANIMATION_CONFIG: AnimationConfig = {
+  preset: 'none',
+  speed: 1,
+  intensity: 1,
+  delay: 0,
+  loop: true,
+};
+
+export const ANIMATION_PRESETS: { id: AnimationPreset; name: string; icon: string; description: string }[] = [
+  { id: 'none', name: '无', icon: '🚫', description: '没有动画' },
+  { id: 'rotate', name: '旋转', icon: '🔄', description: '旋转动画' },
+  { id: 'bounce', name: '弹跳', icon: '🏀', description: '弹跳动画' },
+  { id: 'shake', name: '抖动', icon: '📳', description: '抖动动画' },
+  { id: 'appear', name: '出现', icon: '✨', description: '出现动画' },
+  { id: 'pulse', name: '脉冲', icon: '💓', description: '脉冲动画' },
+  { id: 'swing', name: '摇摆', icon: '🎭', description: '摇摆动画' },
+  { id: 'float', name: '漂浮', icon: '🎈', description: '漂浮动画' },
+];
+
 export const DEFAULT_TEXT_STYLE: TextStyle = {
   fontFamily: 'Arial',
   fontSize: 32,
@@ -82,6 +160,21 @@ export const DEFAULT_TEXT_STYLE: TextStyle = {
   shadowBlur: 0,
   shadowOffsetX: 0,
   shadowOffsetY: 0,
+};
+
+export const DEFAULT_SHAPE_STYLE: ShapeStyle = {
+  fill: '#6366F1',
+  stroke: '#4F46E5',
+  strokeWidth: 2,
+  borderRadius: 8,
+  opacity: 1,
+};
+
+export const DEFAULT_BRUSH_STYLE: BrushStyle = {
+  color: '#6366F1',
+  strokeWidth: 4,
+  opacity: 1,
+  smoothness: 0.5,
 };
 
 export const SOLID_COLOR_PRESETS: BackgroundPreset[] = [
@@ -231,6 +324,26 @@ export const DEFAULT_BACKGROUND: CanvasBackground = {
   ]
 };
 
+export const DEFAULT_ANIMATION_SETTINGS: AnimationSettings = {
+  isPlaying: false,
+  frameCount: 30,
+  frameDelay: 50,
+  currentFrame: 0,
+  format: 'gif',
+};
+
+export interface MosaicGeneratorOptions {
+  shape: string;
+  colorCategory: string;
+  cellSize: number;
+  style: string;
+  emojiScale: number;
+  rotationVariation: number;
+  offsetVariation: number;
+  locked: boolean;
+  clearBeforeGenerate: boolean;
+}
+
 interface CanvasState {
   items: CanvasItem[];
   selectedId: string | null;
@@ -238,12 +351,20 @@ interface CanvasState {
   historyIndex: number;
   canvasSize: { width: number; height: number };
   background: CanvasBackground;
+  currentTool: DrawingTool;
+  shapeStyle: ShapeStyle;
+  brushStyle: BrushStyle;
+  animationSettings: AnimationSettings;
   
   addEmoji: (emoji: string) => void;
   addText: (text?: string) => void;
+  addShape: (x: number, y: number, width: number, height: number, shapeType: ShapeType) => void;
+  addBrush: (points: BrushPoint[], x: number, y: number, width: number, height: number) => void;
   removeItem: (id: string) => void;
   updateItem: (id: string, updates: Partial<CanvasItem>) => void;
   updateTextStyle: (id: string, styleUpdates: Partial<TextStyle>) => void;
+  updateShapeStyle: (id: string, styleUpdates: Partial<ShapeStyle>) => void;
+  updateBrushStyle: (id: string, styleUpdates: Partial<BrushStyle>) => void;
   selectItem: (id: string | null) => void;
   clearCanvas: () => void;
   undo: () => void;
@@ -259,6 +380,23 @@ interface CanvasState {
   updateGradientBackground: (updates: Partial<GradientBackground>) => void;
   updatePatternBackground: (updates: Partial<PatternBackground>) => void;
   applyBackgroundPreset: (preset: BackgroundPreset) => void;
+  
+  setCurrentTool: (tool: DrawingTool) => void;
+  setShapeStyle: (style: Partial<ShapeStyle>) => void;
+  setBrushStyle: (style: Partial<BrushStyle>) => void;
+  setCanvasSize: (width: number, height: number) => void;
+  
+  setItemAnimation: (id: string, animation: Partial<AnimationConfig>) => void;
+  setAllItemsAnimation: (animation: Partial<AnimationConfig>) => void;
+  updateAnimationSettings: (settings: Partial<AnimationSettings>) => void;
+  playAnimation: () => void;
+  pauseAnimation: () => void;
+  setCurrentFrame: (frame: number | ((prev: number) => number)) => void;
+  
+  generateMosaic: (options: MosaicGeneratorOptions) => string;
+  unlockMosaicGroup: (mosaicId: string) => void;
+  removeMosaicGroup: (mosaicId: string) => void;
+  findMosaicIdByItemId: (itemId: string) => string | null;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -270,6 +408,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   historyIndex: 0,
   canvasSize: { width: 400, height: 400 },
   background: DEFAULT_BACKGROUND,
+  currentTool: 'select',
+  shapeStyle: { ...DEFAULT_SHAPE_STYLE },
+  brushStyle: { ...DEFAULT_BRUSH_STYLE },
+  animationSettings: { ...DEFAULT_ANIMATION_SETTINGS },
 
   addEmoji: (emoji: string) => {
     const { items, canvasSize } = get();
@@ -324,6 +466,64 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     });
   },
 
+  addShape: (x: number, y: number, width: number, height: number, shapeType: ShapeType) => {
+    const { items, shapeStyle } = get();
+    const maxZ = items.length > 0 ? Math.max(...items.map(e => e.zIndex)) : 0;
+    const newItem: ShapeItem = {
+      id: generateId(),
+      type: 'shape',
+      shapeType,
+      x: Math.min(x, x + width),
+      y: Math.min(y, y + height),
+      width: Math.abs(width),
+      height: Math.abs(height),
+      scale: 1,
+      rotation: 0,
+      zIndex: maxZ + 1,
+      style: { ...shapeStyle },
+    };
+    
+    set(state => {
+      const newItems = [...state.items, newItem];
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      return {
+        items: newItems,
+        selectedId: newItem.id,
+        history: [...newHistory, newItems],
+        historyIndex: newHistory.length,
+      };
+    });
+  },
+
+  addBrush: (points: BrushPoint[], x: number, y: number, width: number, height: number) => {
+    const { items, brushStyle } = get();
+    const maxZ = items.length > 0 ? Math.max(...items.map(e => e.zIndex)) : 0;
+    const newItem: BrushItem = {
+      id: generateId(),
+      type: 'brush',
+      points,
+      x,
+      y,
+      width,
+      height,
+      scale: 1,
+      rotation: 0,
+      zIndex: maxZ + 1,
+      style: { ...brushStyle },
+    };
+    
+    set(state => {
+      const newItems = [...state.items, newItem];
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      return {
+        items: newItems,
+        selectedId: newItem.id,
+        history: [...newHistory, newItems],
+        historyIndex: newHistory.length,
+      };
+    });
+  },
+
   removeItem: (id: string) => {
     set(state => {
       const newItems = state.items.filter(e => e.id !== id);
@@ -349,6 +549,30 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set(state => ({
       items: state.items.map(e => {
         if (e.id !== id || e.type !== 'text') return e;
+        return {
+          ...e,
+          style: { ...e.style, ...styleUpdates },
+        };
+      }),
+    }));
+  },
+
+  updateShapeStyle: (id: string, styleUpdates: Partial<ShapeStyle>) => {
+    set(state => ({
+      items: state.items.map(e => {
+        if (e.id !== id || e.type !== 'shape') return e;
+        return {
+          ...e,
+          style: { ...e.style, ...styleUpdates },
+        };
+      }),
+    }));
+  },
+
+  updateBrushStyle: (id: string, styleUpdates: Partial<BrushStyle>) => {
+    set(state => ({
+      items: state.items.map(e => {
+        if (e.id !== id || e.type !== 'brush') return e;
         return {
           ...e,
           style: { ...e.style, ...styleUpdates },
@@ -534,5 +758,184 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   applyBackgroundPreset: (preset: BackgroundPreset) => {
     set({ background: { ...preset.background } });
+  },
+
+  setCurrentTool: (tool: DrawingTool) => {
+    set({ currentTool: tool });
+  },
+
+  setShapeStyle: (style: Partial<ShapeStyle>) => {
+    set(state => ({
+      shapeStyle: { ...state.shapeStyle, ...style },
+    }));
+  },
+
+  setBrushStyle: (style: Partial<BrushStyle>) => {
+    set(state => ({
+      brushStyle: { ...state.brushStyle, ...style },
+    }));
+  },
+
+  setCanvasSize: (width: number, height: number) => {
+    set({ canvasSize: { width, height } });
+  },
+
+  setItemAnimation: (id: string, animation: Partial<AnimationConfig>) => {
+    set(state => ({
+      items: state.items.map(e => {
+        if (e.id !== id) return e;
+        const currentAnim = e.animation || { ...DEFAULT_ANIMATION_CONFIG };
+        return {
+          ...e,
+          animation: { ...currentAnim, ...animation },
+        };
+      }),
+    }));
+  },
+
+  setAllItemsAnimation: (animation: Partial<AnimationConfig>) => {
+    set(state => ({
+      items: state.items.map(e => {
+        const currentAnim = e.animation || { ...DEFAULT_ANIMATION_CONFIG };
+        return {
+          ...e,
+          animation: { ...currentAnim, ...animation },
+        };
+      }),
+    }));
+  },
+
+  updateAnimationSettings: (settings: Partial<AnimationSettings>) => {
+    set(state => ({
+      animationSettings: { ...state.animationSettings, ...settings },
+    }));
+  },
+
+  playAnimation: () => {
+    set(state => ({
+      animationSettings: { ...state.animationSettings, isPlaying: true },
+    }));
+  },
+
+  pauseAnimation: () => {
+    set(state => ({
+      animationSettings: { ...state.animationSettings, isPlaying: false },
+    }));
+  },
+
+  setCurrentFrame: (frame: number | ((prev: number) => number)) => {
+    set(state => {
+      const newFrame = typeof frame === 'function' ? frame(state.animationSettings.currentFrame) : frame;
+      return {
+        animationSettings: { ...state.animationSettings, currentFrame: newFrame },
+      };
+    });
+  },
+
+  generateMosaic: (options: MosaicGeneratorOptions): string => {
+    const mosaicId = generateId();
+    const { colorCategory, cellSize, style, emojiScale, rotationVariation, offsetVariation, locked, clearBeforeGenerate } = options;
+    const { canvasSize } = get();
+    
+    const colorEmojis: Record<string, string[]> = {
+      rainbow: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🤍', '🖤'],
+      warm: ['❤️', '🧡', '💛', '🤎', '🩷', '🧡', '❤️‍🔥', '🍊'],
+      cool: ['💙', '💚', '💜', '🩵', '🤍', '🩶', '💎', '🌊'],
+      pastel: ['🩷', '🩵', '💛', '💚', '💜', '🤍', '🌸', '🦄'],
+      neon: ['💚', '💙', '💛', '💜', '🧡', '❤️', '✨', '💫'],
+      nature: ['💚', '🤎', '💛', '🌿', '🍃', '🌻', '🌷', '🌺'],
+      candy: ['🩷', '💜', '💙', '💛', '🧡', '🤍', '🍬', '🍭'],
+      sunset: ['❤️', '🧡', '💛', '💜', '💗', '🌅', '🔥', '✨'],
+    };
+    
+    const emojis = colorEmojis[colorCategory] || colorEmojis.rainbow;
+    
+    const newItems: CanvasItem[] = [];
+    const cols = Math.floor(canvasSize.width / cellSize);
+    const rows = Math.floor(canvasSize.height / cellSize);
+    const offsetX = (canvasSize.width - cols * cellSize) / 2;
+    const offsetY = (canvasSize.height - rows * cellSize) / 2;
+    
+    let zIndex = 1;
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const centerX = offsetX + col * cellSize + cellSize / 2;
+        const centerY = offsetY + row * cellSize + cellSize / 2;
+        
+        const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+        let scale = emojiScale * (cellSize / 40);
+        let rotation = 0;
+        let xOffset = 0;
+        let yOffset = 0;
+        
+        if (style === 'random') {
+          scale *= (0.7 + Math.random() * 0.6);
+          rotation = (Math.random() - 0.5) * 360 * rotationVariation;
+          xOffset = (Math.random() - 0.5) * cellSize * offsetVariation;
+          yOffset = (Math.random() - 0.5) * cellSize * offsetVariation;
+        } else if (style === 'mosaic') {
+          const isEdge = row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
+          if (isEdge) {
+            scale *= 0.8;
+          }
+        }
+        
+        const size = cellSize * scale;
+        
+        newItems.push({
+          id: generateId(),
+          type: 'emoji',
+          emoji,
+          x: centerX - size / 2 + xOffset,
+          y: centerY - size / 2 + yOffset,
+          scale: scale,
+          rotation,
+          zIndex: zIndex++,
+          locked,
+          mosaicId,
+        });
+      }
+    }
+    
+    set(state => {
+      const baseItems = clearBeforeGenerate ? [] : state.items;
+      const newItemsWithZ = newItems.map((item, idx) => ({
+        ...item,
+        zIndex: (baseItems.length > 0 ? Math.max(...baseItems.map(e => e.zIndex)) : 0) + idx + 1,
+      }));
+      const finalItems = [...baseItems, ...newItemsWithZ];
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      
+      return {
+        items: finalItems,
+        history: [...newHistory, finalItems],
+        historyIndex: newHistory.length,
+      };
+    });
+    
+    return mosaicId;
+  },
+
+  unlockMosaicGroup: (mosaicId: string) => {
+    set(state => ({
+      items: state.items.map(e => 
+        e.mosaicId === mosaicId ? { ...e, locked: false } : e
+      ),
+    }));
+  },
+
+  removeMosaicGroup: (mosaicId: string) => {
+    set(state => {
+      const newItems = state.items.filter(e => e.mosaicId !== mosaicId);
+      return {
+        items: newItems,
+      };
+    });
+  },
+
+  findMosaicIdByItemId: (itemId: string): string | null => {
+    const item = get().items.find(e => e.id === itemId);
+    return item?.mosaicId || null;
   },
 }));

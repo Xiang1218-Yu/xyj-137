@@ -1,5 +1,6 @@
 import { GifWriter } from 'omggif';
 import * as UPNG from 'upng-js';
+import type { CanvasItem, CanvasBackground } from '@/hooks/useCanvasStore';
 
 export interface AnimationFrame {
   canvas: HTMLCanvasElement;
@@ -91,7 +92,7 @@ function quantizeImageData(imageData: ImageData, maxPaletteSize: number = 256): 
 
 export function encodeGIF(frames: AnimationFrame[], width: number, height: number): Uint8Array {
   const buffer = new Uint8Array(width * height * frames.length * 4 + 1024 * 1024);
-  const gif = new GifWriter(buffer as any, width, height, { loop: 0 });
+  const gif = new GifWriter(buffer, width, height, { loop: 0 });
   
   for (let i = 0; i < frames.length; i++) {
     const frame = frames[i];
@@ -153,13 +154,13 @@ export function downloadAPNG(frames: AnimationFrame[], width: number, height: nu
 }
 
 export async function generateAnimationFrames(
-  items: any[],
+  items: CanvasItem[],
   canvasWidth: number,
   canvasHeight: number,
   frameCount: number,
   frameDelay: number,
-  background: any,
-  backgroundStyleFn: (bg: any) => React.CSSProperties
+  background: CanvasBackground,
+  backgroundStyleFn: (bg: CanvasBackground) => React.CSSProperties
 ): Promise<AnimationFrame[]> {
   const frames: AnimationFrame[] = [];
   

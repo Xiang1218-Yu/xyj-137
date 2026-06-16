@@ -19,8 +19,10 @@ import {
   DEFAULT_ANIMATION_CONFIG,
   type AnimationPreset,
   type AnimationConfig,
+  type EmojiItem,
+  type TextItem,
 } from '@/hooks/useCanvasStore';
-import { buildBackgroundStyles } from '@/components/Canvas/Canvas';
+import { buildBackgroundStyles } from '@/utils/backgroundStyles';
 import { generateAnimationFrames, downloadGIF, downloadAPNG } from '@/utils/animationEncoder';
 
 export function AnimationPanel() {
@@ -60,8 +62,8 @@ export function AnimationPanel() {
     }
   };
 
-  const handleAnimationParamChange = (key: keyof AnimationConfig, value: any) => {
-    const update: Partial<AnimationConfig> = { [key]: value };
+  const handleAnimationParamChange = (key: keyof AnimationConfig, value: number | boolean) => {
+    const update: Partial<AnimationConfig> = { [key]: value } as Partial<AnimationConfig>;
     if (selectedId) {
       setItemAnimation(selectedId, update);
     } else if (hasItems) {
@@ -142,7 +144,7 @@ export function AnimationPanel() {
         <div className="px-3 py-2 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-100">
           <p className="text-xs text-pink-700 font-medium">
             {selectedId
-              ? `🎯 已选中元素: ${selectedItem?.type === 'emoji' ? (selectedItem as any).emoji : (selectedItem as any).text}`
+              ? `🎯 已选中元素: ${selectedItem?.type === 'emoji' ? (selectedItem as EmojiItem).emoji : selectedItem?.type === 'text' ? (selectedItem as TextItem).text : selectedItem?.type}`
               : hasItems
               ? '🎨 将应用到所有元素'
               : '✨ 先添加元素到画布'}
