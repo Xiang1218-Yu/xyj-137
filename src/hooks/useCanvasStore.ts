@@ -1,61 +1,8 @@
 import { create } from 'zustand';
-import { generateMosaicEmojis } from '@/utils/mosaicGenerator';
-import type { ShapeType as MosaicShapeType } from '@/utils/shapeTemplates';
-import type { ColorCategory, MosaicStyle } from '@/utils/mosaicGenerator';
 
-export type CanvasItemType = 'emoji' | 'text' | 'shape' | 'brush';
-export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'line' | 'ellipse' | 'star';
-export type DrawingTool = 'select' | 'rectangle' | 'circle' | 'triangle' | 'line' | 'ellipse' | 'star' | 'brush';
+export type CanvasItemType = 'emoji' | 'text';
 export type BackgroundMode = 'solid' | 'gradient' | 'pattern';
 export type PatternType = 'dots' | 'grid' | 'lines' | 'diagonal' | 'waves' | 'zigzag';
-
-export type AnimationPreset = 'none' | 'rotate' | 'bounce' | 'shake' | 'appear' | 'pulse' | 'swing' | 'float';
-export type AnimationExportFormat = 'gif' | 'apng';
-
-export interface AnimationConfig {
-  preset: AnimationPreset;
-  speed: number;
-  intensity: number;
-  delay: number;
-  loop: boolean;
-}
-
-export const DEFAULT_ANIMATION_CONFIG: AnimationConfig = {
-  preset: 'none',
-  speed: 1,
-  intensity: 1,
-  delay: 0,
-  loop: true,
-};
-
-export const ANIMATION_PRESETS: { id: AnimationPreset; name: string; icon: string; description: string }[] = [
-  { id: 'none', name: '无动画', icon: '⏹️', description: '静态显示' },
-  { id: 'rotate', name: '旋转', icon: '🔄', description: '持续旋转' },
-  { id: 'bounce', name: '跳动', icon: '⬆️', description: '上下跳动' },
-  { id: 'shake', name: '抖动', icon: '📳', description: '左右抖动' },
-  { id: 'appear', name: '出现', icon: '✨', description: '淡入放大出现' },
-  { id: 'pulse', name: '脉冲', icon: '💗', description: '缩放脉冲' },
-  { id: 'swing', name: '摇摆', icon: '🎐', description: '左右摇摆' },
-  { id: 'float', name: '漂浮', icon: '🎈', description: '上下漂浮' },
-];
-
-export interface AnimationSettings {
-  frameCount: number;
-  frameDelay: number;
-  format: AnimationExportFormat;
-  quality: number;
-  isPlaying: boolean;
-  currentFrame: number;
-}
-
-export const DEFAULT_ANIMATION_SETTINGS: AnimationSettings = {
-  frameCount: 30,
-  frameDelay: 50,
-  format: 'gif',
-  quality: 10,
-  isPlaying: false,
-  currentFrame: 0,
-};
 
 export interface BaseCanvasItem {
   id: string;
@@ -65,9 +12,6 @@ export interface BaseCanvasItem {
   scale: number;
   rotation: number;
   zIndex: number;
-  locked?: boolean;
-  mosaicId?: string;
-  animation?: AnimationConfig;
 }
 
 export interface EmojiItem extends BaseCanvasItem {
@@ -93,57 +37,7 @@ export interface TextItem extends BaseCanvasItem {
   style: TextStyle;
 }
 
-export interface ShapeStyle {
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
-  borderRadius: number;
-  opacity: number;
-}
-
-export interface ShapeItem extends BaseCanvasItem {
-  type: 'shape';
-  shapeType: ShapeType;
-  width: number;
-  height: number;
-  style: ShapeStyle;
-}
-
-export interface BrushPoint {
-  x: number;
-  y: number;
-  pressure: number;
-}
-
-export interface BrushStyle {
-  color: string;
-  strokeWidth: number;
-  opacity: number;
-  smoothness: number;
-}
-
-export interface BrushItem extends BaseCanvasItem {
-  type: 'brush';
-  points: BrushPoint[];
-  style: BrushStyle;
-}
-
-export type CanvasItem = EmojiItem | TextItem | ShapeItem | BrushItem;
-
-export const DEFAULT_SHAPE_STYLE: ShapeStyle = {
-  fill: '#6366F1',
-  stroke: '#4F46E5',
-  strokeWidth: 2,
-  borderRadius: 0,
-  opacity: 1,
-};
-
-export const DEFAULT_BRUSH_STYLE: BrushStyle = {
-  color: '#333333',
-  strokeWidth: 3,
-  opacity: 1,
-  smoothness: 0.5,
-};
+export type CanvasItem = EmojiItem | TextItem;
 
 export interface SolidBackground {
   mode: 'solid';
@@ -344,24 +238,13 @@ interface CanvasState {
   historyIndex: number;
   canvasSize: { width: number; height: number };
   background: CanvasBackground;
-  animationSettings: AnimationSettings;
-  currentTool: DrawingTool;
-  shapeStyle: ShapeStyle;
-  brushStyle: BrushStyle;
   
   addEmoji: (emoji: string) => void;
   addText: (text?: string) => void;
-  addShape: (shapeType: ShapeType, x: number, y: number, width: number, height: number) => void;
-  addBrush: (points: BrushPoint[]) => void;
   removeItem: (id: string) => void;
   updateItem: (id: string, updates: Partial<CanvasItem>) => void;
   updateTextStyle: (id: string, styleUpdates: Partial<TextStyle>) => void;
-  updateShapeStyle: (id: string, styleUpdates: Partial<ShapeStyle>) => void;
-  updateBrushStyle: (id: string, styleUpdates: Partial<BrushStyle>) => void;
   selectItem: (id: string | null) => void;
-  setCurrentTool: (tool: DrawingTool) => void;
-  setShapeStyle: (style: Partial<ShapeStyle>) => void;
-  setBrushStyle: (style: Partial<BrushStyle>) => void;
   clearCanvas: () => void;
   undo: () => void;
   redo: () => void;
@@ -376,26 +259,6 @@ interface CanvasState {
   updateGradientBackground: (updates: Partial<GradientBackground>) => void;
   updatePatternBackground: (updates: Partial<PatternBackground>) => void;
   applyBackgroundPreset: (preset: BackgroundPreset) => void;
-  generateMosaic: (options: {
-    shape: MosaicShapeType;
-    colorCategory: ColorCategory;
-    cellSize: number;
-    style: MosaicStyle;
-    emojiScale?: number;
-    rotationVariation?: number;
-    offsetVariation?: number;
-    locked?: boolean;
-    clearBeforeGenerate?: boolean;
-  }) => string;
-  unlockMosaicGroup: (mosaicId: string) => void;
-  removeMosaicGroup: (mosaicId: string) => void;
-  findMosaicIdByItemId: (itemId: string) => string | null;
-  setItemAnimation: (id: string, animation: Partial<AnimationConfig>) => void;
-  setAllItemsAnimation: (animation: Partial<AnimationConfig>) => void;
-  updateAnimationSettings: (settings: Partial<AnimationSettings>) => void;
-  playAnimation: () => void;
-  pauseAnimation: () => void;
-  setCurrentFrame: (frame: number | ((prev: number) => number)) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -407,10 +270,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   historyIndex: 0,
   canvasSize: { width: 400, height: 400 },
   background: DEFAULT_BACKGROUND,
-  animationSettings: { ...DEFAULT_ANIMATION_SETTINGS },
-  currentTool: 'select',
-  shapeStyle: { ...DEFAULT_SHAPE_STYLE },
-  brushStyle: { ...DEFAULT_BRUSH_STYLE },
 
   addEmoji: (emoji: string) => {
     const { items, canvasSize } = get();
@@ -465,76 +324,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     });
   },
 
-  addShape: (shapeType: ShapeType, x: number, y: number, width: number, height: number) => {
-    const { items, shapeStyle } = get();
-    const maxZ = items.length > 0 ? Math.max(...items.map(e => e.zIndex)) : 0;
-    const newItem: ShapeItem = {
-      id: generateId(),
-      type: 'shape',
-      shapeType,
-      x,
-      y,
-      width,
-      height,
-      scale: 1,
-      rotation: 0,
-      zIndex: maxZ + 1,
-      style: { ...shapeStyle },
-    };
-    
-    set(state => {
-      const newItems = [...state.items, newItem];
-      const newHistory = state.history.slice(0, state.historyIndex + 1);
-      return {
-        items: newItems,
-        selectedId: newItem.id,
-        history: [...newHistory, newItems],
-        historyIndex: newHistory.length,
-      };
-    });
-  },
-
-  addBrush: (points: BrushPoint[]) => {
-    if (points.length < 2) return;
-    
-    const { items, brushStyle } = get();
-    const maxZ = items.length > 0 ? Math.max(...items.map(e => e.zIndex)) : 0;
-    
-    const xs = points.map(p => p.x);
-    const ys = points.map(p => p.y);
-    const minX = Math.min(...xs);
-    const minY = Math.min(...ys);
-    
-    const adjustedPoints = points.map(p => ({
-      x: p.x - minX,
-      y: p.y - minY,
-      pressure: p.pressure,
-    }));
-    
-    const newItem: BrushItem = {
-      id: generateId(),
-      type: 'brush',
-      points: adjustedPoints,
-      x: minX,
-      y: minY,
-      scale: 1,
-      rotation: 0,
-      zIndex: maxZ + 1,
-      style: { ...brushStyle },
-    };
-    
-    set(state => {
-      const newItems = [...state.items, newItem];
-      const newHistory = state.history.slice(0, state.historyIndex + 1);
-      return {
-        items: newItems,
-        selectedId: newItem.id,
-        history: [...newHistory, newItems],
-        historyIndex: newHistory.length,
-      };
-    });
-  },
-
   removeItem: (id: string) => {
     set(state => {
       const newItems = state.items.filter(e => e.id !== id);
@@ -568,48 +357,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     }));
   },
 
-  updateShapeStyle: (id: string, styleUpdates: Partial<ShapeStyle>) => {
-    set(state => ({
-      items: state.items.map(e => {
-        if (e.id !== id || e.type !== 'shape') return e;
-        return {
-          ...e,
-          style: { ...e.style, ...styleUpdates },
-        };
-      }),
-    }));
-  },
-
-  updateBrushStyle: (id: string, styleUpdates: Partial<BrushStyle>) => {
-    set(state => ({
-      items: state.items.map(e => {
-        if (e.id !== id || e.type !== 'brush') return e;
-        return {
-          ...e,
-          style: { ...e.style, ...styleUpdates },
-        };
-      }),
-    }));
-  },
-
   selectItem: (id: string | null) => {
     set({ selectedId: id });
-  },
-
-  setCurrentTool: (tool: DrawingTool) => {
-    set({ currentTool: tool, selectedId: null });
-  },
-
-  setShapeStyle: (style: Partial<ShapeStyle>) => {
-    set(state => ({
-      shapeStyle: { ...state.shapeStyle, ...style },
-    }));
-  },
-
-  setBrushStyle: (style: Partial<BrushStyle>) => {
-    set(state => ({
-      brushStyle: { ...state.brushStyle, ...style },
-    }));
   },
 
   clearCanvas: () => {
@@ -785,124 +534,5 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   applyBackgroundPreset: (preset: BackgroundPreset) => {
     set({ background: { ...preset.background } });
-  },
-
-  generateMosaic: (options) => {
-    const { canvasSize } = get();
-    const mosaicId = generateId();
-    const locked = options.locked ?? true;
-    const clearBeforeGenerate = options.clearBeforeGenerate ?? false;
-
-    const mosaicItems = generateMosaicEmojis({
-      ...options,
-      canvasWidth: canvasSize.width,
-      canvasHeight: canvasSize.height,
-    });
-
-    set(state => {
-      const baseItems = clearBeforeGenerate ? [] : state.items;
-      const maxZ = baseItems.length > 0 ? Math.max(...baseItems.map(e => e.zIndex)) : 0;
-      const adjustedItems = mosaicItems.map((item, index) => ({
-        ...item,
-        zIndex: maxZ + 1 + index,
-        locked,
-        mosaicId,
-      }));
-      
-      const newItems = [...baseItems, ...adjustedItems];
-      const newHistory = state.history.slice(0, state.historyIndex + 1);
-      
-      return {
-        items: newItems,
-        selectedId: null,
-        history: [...newHistory, newItems],
-        historyIndex: newHistory.length,
-      };
-    });
-
-    return mosaicId;
-  },
-
-  unlockMosaicGroup: (mosaicId) => {
-    set(state => ({
-      items: state.items.map(e => 
-        e.mosaicId === mosaicId ? { ...e, locked: false } : e
-      ),
-    }));
-    get().saveToHistory();
-  },
-
-  removeMosaicGroup: (mosaicId) => {
-    set(state => {
-      const newItems = state.items.filter(e => e.mosaicId !== mosaicId);
-      const newHistory = state.history.slice(0, state.historyIndex + 1);
-      return {
-        items: newItems,
-        selectedId: state.selectedId && state.items.find(e => e.id === state.selectedId)?.mosaicId === mosaicId 
-          ? null 
-          : state.selectedId,
-        history: [...newHistory, newItems],
-        historyIndex: newHistory.length,
-      };
-    });
-  },
-
-  findMosaicIdByItemId: (itemId) => {
-    const item = get().items.find(e => e.id === itemId);
-    return item?.mosaicId || null;
-  },
-
-  setItemAnimation: (id, animation) => {
-    set(state => ({
-      items: state.items.map(e => {
-        if (e.id !== id) return e;
-        const currentAnim = e.animation || { ...DEFAULT_ANIMATION_CONFIG };
-        return {
-          ...e,
-          animation: { ...currentAnim, ...animation },
-        };
-      }),
-    }));
-    get().saveToHistory();
-  },
-
-  setAllItemsAnimation: (animation) => {
-    set(state => ({
-      items: state.items.map(e => {
-        const currentAnim = e.animation || { ...DEFAULT_ANIMATION_CONFIG };
-        return {
-          ...e,
-          animation: { ...currentAnim, ...animation },
-        };
-      }),
-    }));
-    get().saveToHistory();
-  },
-
-  updateAnimationSettings: (settings) => {
-    set(state => ({
-      animationSettings: { ...state.animationSettings, ...settings },
-    }));
-  },
-
-  playAnimation: () => {
-    set(state => ({
-      animationSettings: { ...state.animationSettings, isPlaying: true },
-    }));
-  },
-
-  pauseAnimation: () => {
-    set(state => ({
-      animationSettings: { ...state.animationSettings, isPlaying: false },
-    }));
-  },
-
-  setCurrentFrame: (frame) => {
-    set(state => ({
-      animationSettings: {
-        ...state.animationSettings,
-        currentFrame: typeof frame === 'function' ? frame(state.animationSettings.currentFrame) : frame,
-      },
-    }));
   },
 }));

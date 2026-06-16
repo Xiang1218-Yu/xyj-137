@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { 
   Move, 
   ZoomIn, 
@@ -9,31 +10,21 @@ import {
   ArrowDown,
   Layers,
   Type,
+  Palette,
   Bold,
   Sparkles,
   Image,
+  Droplet,
   Grid3X3,
   Circle,
-  Square,
-  Triangle,
-  Minus,
   Plus,
-  Unlock,
-  Pencil,
-  Droplet,
-  Paintbrush,
-  Radius,
-  Sliders,
-  Palette,
-  Ellipsis,
+  Minus,
 } from 'lucide-react';
 import { 
   useCanvasStore, 
   type CanvasItem, 
   type TextItem, 
   type EmojiItem,
-  type ShapeItem,
-  type BrushItem,
   type BackgroundMode,
   type PatternType,
   SOLID_COLOR_PRESETS,
@@ -55,7 +46,6 @@ interface SliderControlProps {
   onChange: (value: number) => void;
   onChangeEnd?: () => void;
   color?: string;
-  disabled?: boolean;
 }
 
 function SliderControl({ 
@@ -68,8 +58,7 @@ function SliderControl({
   unit = '', 
   onChange,
   onChangeEnd,
-  color = 'purple',
-  disabled = false,
+  color = 'purple'
 }: SliderControlProps) {
   const colorClasses: Record<string, string> = {
     purple: 'accent-purple-500',
@@ -85,12 +74,9 @@ function SliderControl({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
           {icon}
-          <span className={disabled ? 'text-gray-400' : ''}>{label}</span>
+          <span>{label}</span>
         </div>
-        <span className={cn(
-          "text-sm font-mono bg-gray-100 px-2 py-0.5 rounded-lg",
-          disabled ? "text-gray-400" : "text-gray-600"
-        )}>
+        <span className="text-sm font-mono bg-gray-100 px-2 py-0.5 rounded-lg text-gray-600">
           {Math.round(value * 10) / 10}{unit}
         </span>
       </div>
@@ -103,10 +89,8 @@ function SliderControl({
         onChange={(e) => onChange(Number(e.target.value))}
         onMouseUp={onChangeEnd}
         onTouchEnd={onChangeEnd}
-        disabled={disabled}
         className={cn(
-          "w-full h-2 bg-gray-200 rounded-lg appearance-none",
-          disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+          "w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer",
           colorClasses[color]
         )}
       />
@@ -229,6 +213,8 @@ function BackgroundPanel() {
     updatePatternBackground,
     applyBackgroundPreset,
   } = useCanvasStore();
+
+  const [activePresetTab, setActivePresetTab] = useState<BackgroundMode>('gradient');
 
   const currentOpacity = background.opacity ?? 1;
   const updateOpacity = (opacity: number) => {
@@ -509,16 +495,11 @@ export function ControlPanel() {
     updateItem, 
     removeItem,
     updateTextStyle,
-    updateShapeStyle,
-    updateBrushStyle,
     bringForward,
     sendBackward,
     bringToFront,
     sendToBack,
     saveToHistory,
-    unlockMosaicGroup,
-    removeMosaicGroup,
-    findMosaicIdByItemId,
   } = useCanvasStore();
 
   const selectedItem = items.find(e => e.id === selectedId);
@@ -527,28 +508,12 @@ export function ControlPanel() {
     return <BackgroundPanel />;
   }
 
-  const mosaicId = selectedItem.mosaicId || findMosaicIdByItemId(selectedItem.id);
-  const isMosaicItem = !!mosaicId;
-
   const handleUpdate = (key: keyof CanvasItem, value: number | string) => {
     updateItem(selectedItem.id, { [key]: value } as Partial<CanvasItem>);
   };
 
   const isTextItem = selectedItem.type === 'text';
-  const isShapeItem = selectedItem.type === 'shape';
-  const isBrushItem = selectedItem.type === 'brush';
   const textItem = isTextItem ? (selectedItem as TextItem) : null;
-  const shapeItem = isShapeItem ? (selectedItem as ShapeItem) : null;
-  const brushItem = isBrushItem ? (selectedItem as BrushItem) : null;
-
-  const SHAPE_TYPE_NAMES: Record<string, string> = {
-    rectangle: '矩形',
-    circle: '圆形',
-    ellipse: '椭圆',
-    triangle: '三角形',
-    line: '直线',
-    star: '星形',
-  };
 
   return (
     <div className="flex flex-col h-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 overflow-hidden">
@@ -557,35 +522,16 @@ export function ControlPanel() {
           🎛️ 属性面板
         </h3>
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-2xl overflow-hidden">
             {selectedItem.type === 'emoji' ? (
-              <span className="text-2xl">{(selectedItem as EmojiItem).emoji}</span>
-            ) : selectedItem.type === 'text' ? (
-              <Type className="w-6 h-6 text-purple-500" />
-            ) : selectedItem.type === 'shape' ? (
-              (() => {
-                const shapeType = (selectedItem as ShapeItem).shapeType;
-                switch (shapeType) {
-                  case 'rectangle': return <Square className="w-6 h-6 text-purple-500" />;
-                  case 'circle': return <Circle className="w-6 h-6 text-purple-500" />;
-                  case 'ellipse': return <Ellipsis className="w-6 h-6 text-purple-500" style={{ transform: 'rotate(90deg)' }} />;
-                  case 'triangle': return <Triangle className="w-6 h-6 text-purple-500" />;
-                  case 'line': return <Minus className="w-6 h-6 text-purple-500" />;
-                  case 'star': return <Sparkles className="w-6 h-6 text-purple-500" />;
-                  default: return <Square className="w-6 h-6 text-purple-500" />;
-                }
-              })()
+              (selectedItem as EmojiItem).emoji
             ) : (
-              <Pencil className="w-6 h-6 text-purple-500" />
+              <Type className="w-6 h-6 text-purple-500" />
             )}
           </div>
           <div>
             <p className="font-medium text-gray-800">
-              {selectedItem.type === 'emoji' ? '表情元素' : 
-               selectedItem.type === 'text' ? '文字元素' :
-               selectedItem.type === 'shape' ? `${SHAPE_TYPE_NAMES[(selectedItem as ShapeItem).shapeType]}元素` :
-               '画笔元素'}
-              {isMosaicItem && <span className="ml-1.5 text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">拼贴组</span>}
+              {selectedItem.type === 'emoji' ? '表情元素' : '文字元素'}
             </p>
             <p className="text-xs text-gray-500">ID: {selectedItem.id.slice(0, 6)}...</p>
           </div>
@@ -593,31 +539,6 @@ export function ControlPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {isMosaicItem && (
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-purple-500" />
-              拼贴组操作
-            </h4>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => mosaicId && unlockMosaicGroup(mosaicId)}
-                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-medium text-sm bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
-              >
-                <Unlock className="w-4 h-4" />
-                解锁全组
-              </button>
-              <button
-                onClick={() => mosaicId && removeMosaicGroup(mosaicId)}
-                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-medium text-sm bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
-              >
-                <Trash2 className="w-4 h-4" />
-                删除整组
-              </button>
-            </div>
-          </div>
-        )}
-
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
             <Move className="w-4 h-4" />
@@ -681,7 +602,7 @@ export function ControlPanel() {
         </div>
 
         {isTextItem && textItem && (
-          <div className="space-y-4">
+          <>
             <div className="space-y-4">
               <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
                 <Type className="w-4 h-4" />
@@ -818,178 +739,7 @@ export function ControlPanel() {
                 }}
               />
             </div>
-          </div>
-        )}
-
-        {isShapeItem && shapeItem && (
-          <div className="space-y-4">
-            <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-purple-500" />
-                形状样式
-              </h4>
-              
-              <ColorPicker
-                label="填充颜色"
-                icon={<Droplet className="w-4 h-4 text-blue-500" />}
-                value={shapeItem.style.fill}
-                onChange={(v) => {
-                  updateShapeStyle(selectedItem.id, { fill: v });
-                  saveToHistory();
-                }}
-              />
-
-              <ColorPicker
-                label="描边颜色"
-                icon={<Paintbrush className="w-4 h-4 text-pink-500" />}
-                value={shapeItem.style.stroke}
-                onChange={(v) => {
-                  updateShapeStyle(selectedItem.id, { stroke: v });
-                  saveToHistory();
-                }}
-              />
-
-              <SliderControl
-                label="描边粗细"
-                icon={<Minus className="w-4 h-4 text-orange-500" />}
-                value={shapeItem.style.strokeWidth}
-                min={0}
-                max={20}
-                step={0.5}
-                unit="px"
-                onChange={(v) => updateShapeStyle(selectedItem.id, { strokeWidth: v })}
-                onChangeEnd={saveToHistory}
-                color="orange"
-              />
-
-              {shapeItem.shapeType === 'rectangle' && (
-                <SliderControl
-                  label="圆角半径"
-                  icon={<Radius className="w-4 h-4 text-green-500" />}
-                  value={shapeItem.style.borderRadius}
-                  min={0}
-                  max={50}
-                  step={1}
-                  unit="px"
-                  onChange={(v) => updateShapeStyle(selectedItem.id, { borderRadius: v })}
-                  onChangeEnd={saveToHistory}
-                  color="green"
-                />
-              )}
-
-              <SliderControl
-                label="透明度"
-                icon={<Palette className="w-4 h-4 text-blue-500" />}
-                value={shapeItem.style.opacity}
-                min={0}
-                max={1}
-                step={0.01}
-                unit=""
-                onChange={(v) => updateShapeStyle(selectedItem.id, { opacity: v })}
-                onChangeEnd={saveToHistory}
-                color="blue"
-              />
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
-                <Square className="w-4 h-4" />
-                尺寸
-              </h4>
-              
-              <SliderControl
-                label="宽度"
-                icon={<Move className="w-4 h-4 text-purple-500" />}
-                value={shapeItem.width}
-                min={10}
-                max={400}
-                step={1}
-                unit="px"
-                onChange={(v) => updateItem(selectedItem.id, { width: v })}
-                onChangeEnd={saveToHistory}
-                color="purple"
-              />
-
-              <SliderControl
-                label="高度"
-                icon={<Move className="w-4 h-4 text-pink-500" />}
-                value={shapeItem.height}
-                min={10}
-                max={400}
-                step={1}
-                unit="px"
-                onChange={(v) => updateItem(selectedItem.id, { height: v })}
-                onChangeEnd={saveToHistory}
-                color="pink"
-              />
-            </div>
-          </div>
-        )}
-
-        {isBrushItem && brushItem && (
-          <div className="space-y-4">
-            <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-purple-500" />
-                画笔样式
-              </h4>
-              
-              <ColorPicker
-                label="画笔颜色"
-                icon={<Paintbrush className="w-4 h-4 text-pink-500" />}
-                value={brushItem.style.color}
-                onChange={(v) => {
-                  updateBrushStyle(selectedItem.id, { color: v });
-                  saveToHistory();
-                }}
-              />
-
-              <SliderControl
-                label="画笔粗细"
-                icon={<Minus className="w-4 h-4 text-orange-500" />}
-                value={brushItem.style.strokeWidth}
-                min={1}
-                max={50}
-                step={0.5}
-                unit="px"
-                onChange={(v) => updateBrushStyle(selectedItem.id, { strokeWidth: v })}
-                onChangeEnd={saveToHistory}
-                color="orange"
-              />
-
-              <SliderControl
-                label="透明度"
-                icon={<Palette className="w-4 h-4 text-blue-500" />}
-                value={brushItem.style.opacity}
-                min={0}
-                max={1}
-                step={0.01}
-                unit=""
-                onChange={(v) => updateBrushStyle(selectedItem.id, { opacity: v })}
-                onChangeEnd={saveToHistory}
-                color="blue"
-              />
-
-              <SliderControl
-                label="平滑度"
-                icon={<Ellipsis className="w-4 h-4 text-green-500" />}
-                value={brushItem.style.smoothness}
-                min={0}
-                max={1}
-                step={0.05}
-                unit=""
-                onChange={(v) => updateBrushStyle(selectedItem.id, { smoothness: v })}
-                onChangeEnd={saveToHistory}
-                color="green"
-              />
-            </div>
-
-            <div className="p-3 bg-gray-50 rounded-xl">
-              <p className="text-xs text-gray-500">
-                📝 画笔画点数: {brushItem.points.length}
-              </p>
-            </div>
-          </div>
+          </>
         )}
 
         <div className="space-y-4">
