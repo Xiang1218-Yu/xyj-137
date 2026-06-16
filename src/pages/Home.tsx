@@ -6,11 +6,12 @@ import { AnimationPanel } from '@/components/AnimationPanel/AnimationPanel';
 import { Toolbar } from '@/components/Toolbar/Toolbar';
 import { ShapeToolbar } from '@/components/ShapeToolbar/ShapeToolbar';
 import { MosaicPanel } from '@/components/MosaicPanel/MosaicPanel';
+import { StoryPanel } from '@/components/StoryPanel/StoryPanel';
 import { useCanvasStore } from '@/hooks/useCanvasStore';
-import { Sliders, Wand2, Smile, Paintbrush, Grid3X3, Type } from 'lucide-react';
+import { Sliders, Wand2, Smile, Paintbrush, Grid3X3, Type, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type RightPanelTab = 'properties' | 'animation';
+type RightPanelTab = 'properties' | 'animation' | 'story';
 type LeftPanelTab = 'emoji' | 'draw' | 'mosaic' | 'text';
 
 export default function Home() {
@@ -171,11 +172,11 @@ export default function Home() {
               </div>
 
               <div className="col-span-3 h-full min-h-0 flex flex-col">
-                <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-white/60 backdrop-blur-sm rounded-2xl shadow-md border border-white/50 mb-3">
+                <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-white/60 backdrop-blur-sm rounded-2xl shadow-md border border-white/50 mb-3">
                   <button
                     onClick={() => setActiveTab('properties')}
                     className={cn(
-                      "flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-sm font-medium transition-all",
+                      "flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-medium transition-all",
                       activeTab === 'properties'
                         ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm"
                         : "text-gray-600 hover:text-purple-600 hover:bg-white/50"
@@ -187,7 +188,7 @@ export default function Home() {
                   <button
                     onClick={() => setActiveTab('animation')}
                     className={cn(
-                      "flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-sm font-medium transition-all",
+                      "flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-medium transition-all",
                       activeTab === 'animation'
                         ? "bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-sm"
                         : "text-gray-600 hover:text-pink-600 hover:bg-white/50"
@@ -196,15 +197,29 @@ export default function Home() {
                     <Wand2 className="w-4 h-4" />
                     <span>动画</span>
                   </button>
+                  <button
+                    onClick={() => setActiveTab('story')}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-medium transition-all",
+                      activeTab === 'story'
+                        ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-sm"
+                        : "text-gray-600 hover:text-orange-600 hover:bg-white/50"
+                    )}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>故事</span>
+                  </button>
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-hidden">
                   {activeTab === 'properties' ? (
                     <ControlPanel />
-                  ) : (
+                  ) : activeTab === 'animation' ? (
                     <div className="h-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 overflow-hidden p-4">
                       <AnimationPanel />
                     </div>
+                  ) : (
+                    <StoryPanel />
                   )}
                 </div>
               </div>

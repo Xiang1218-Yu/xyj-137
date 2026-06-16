@@ -3,8 +3,9 @@ import { CanvasEmoji } from './CanvasEmoji';
 import { CanvasText } from './CanvasText';
 import { CanvasShape } from './CanvasShape';
 import { CanvasBrush } from './CanvasBrush';
+import { SpeechBubble } from './SpeechBubble';
 import { useCanvasStore } from '@/hooks/useCanvasStore';
-import type { EmojiItem, TextItem, ShapeItem, BrushItem, BrushPoint, DrawingTool } from '@/hooks/useCanvasStore';
+import type { EmojiItem, TextItem, ShapeItem, BrushItem, BrushPoint, DrawingTool, FrameBorderConfig } from '@/hooks/useCanvasStore';
 import { buildBackgroundStyles } from '@/utils/backgroundStyles';
 
 interface CanvasProps {
@@ -16,6 +17,72 @@ const isShapeTool = (tool: DrawingTool) =>
 
 const isBrushTool = (tool: DrawingTool) => tool === 'brush';
 const isDrawingTool = (tool: DrawingTool) => isShapeTool(tool) || isBrushTool(tool);
+
+function buildFrameBorderStyle(border: FrameBorderConfig): React.CSSProperties {
+  if (border.style === 'none') return {};
+
+  const base: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    pointerEvents: 'none',
+    borderRadius: border.radius,
+  };
+
+  switch (border.style) {
+    case 'solid':
+      return {
+        ...base,
+        border: `${border.width}px solid ${border.color}`,
+      };
+    case 'dashed':
+      return {
+        ...base,
+        border: `${border.width}px dashed ${border.color}`,
+      };
+    case 'dotted':
+      return {
+        ...base,
+        border: `${border.width}px dotted ${border.color}`,
+      };
+    case 'double':
+      return {
+        ...base,
+        border: `${border.width}px double ${border.color}`,
+      };
+    case 'comic':
+      return {
+        ...base,
+        border: `${border.width + 1}px solid ${border.color}`,
+        boxShadow: `3px 3px 0 ${border.color}`,
+        transform: 'rotate(-0.5deg)',
+      };
+    case 'movie':
+      return {
+        ...base,
+        border: `0`,
+        background: `repeating-linear-gradient(
+          0deg,
+          ${border.color} 0px,
+          ${border.color} ${border.width + 4}px,
+          transparent ${border.width + 4}px,
+          transparent ${border.width + 14}px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          ${border.color} 0px,
+          ${border.color} ${border.width + 4}px,
+          transparent ${border.width + 4}px,
+          transparent ${border.width + 14}px
+        )`,
+        WebkitMask: `linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)`,
+        WebkitMaskComposite: 'xor',
+        maskComposite: 'exclude',
+        padding: `${border.width + 2}px`,
+      };
+    default:
+      return {};
+  }
+}
 
 export function Canvas({ canvasRef }: CanvasProps) {
   const { 
@@ -32,7 +99,14 @@ export function Canvas({ canvasRef }: CanvasProps) {
     addShape,
     addBrush,
     setCurrentTool,
+    isStoryMode,
+    frames,
+    currentFrameId,
   } = useCanvasStore();
+
+  const currentFrame = isStoryMode ? frames.find(f => f.id === currentFrameId) : null;
+  const frameBorder = currentFrame?.border;
+  const speechBubbles = currentFrame?.speechBubbles || [];
 
   const isDrawing = useRef(false);
   const drawStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -351,9 +425,16 @@ export function Canvas({ canvasRef }: CanvasProps) {
 
   const cursor = isDrawingTool(currentTool) ? 'crosshair' : 'default';
 
+  const canvasBorderRadius = frameBorder && frameBorder.style !== 'none' ? `${frameBorder.radius}px` : '1.5rem';
+
   return (
     <div className="flex flex-col items-center gap-4 w-full">
       <div className="relative p-8">
+        {isStoryMode && currentFrame && (
+          <div className="absolute -top-1 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-1 rounded-full text-sm font-medium shadow-lg z-10">
+            {currentFrame.title}
+          </div>
+        )}
         <div
           ref={canvasRef}
           onMouseDown={handleMouseDown}
@@ -361,11 +442,12 @@ export function Canvas({ canvasRef }: CanvasProps) {
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onClick={handleCanvasClick}
-          className="relative overflow-hidden rounded-3xl shadow-2xl"
+          className="relative overflow-hidden shadow-2xl"
           style={{
             width: canvasSize.width,
             height: canvasSize.height,
             cursor,
+            borderRadius: canvasBorderRadius,
             ...bgStyles,
           }}
         >
@@ -411,24 +493,39 @@ export function Canvas({ canvasRef }: CanvasProps) {
             }
             return null;
           })}
+
+          {isStoryMode && currentFrame && speechBubbles.map(bubble => (
+            <SpeechBubble
+              key={bubble.id}
+              bubble={bubble}
+              frameId={currentFrame.id}
+            />
+          ))}
           
           {renderPreview()}
+
+          {isStoryMode && frameBorder && frameBorder.style !== 'none' && (
+            <div style={buildFrameBorderStyle(frameBorder)} />
+          )}
           
           {items.length === 0 && !isDrawing.current && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none">
               <div className="text-6xl mb-4 animate-bounce">✨</div>
-              <p className="text-lg font-medium">点击左侧表情或使用工具栏添加到画布</p>
+              <p className="text-lg font-medium">
+                {isStoryMode ? '开始创作你的分镜内容' : '点击左侧表情或使用工具栏添加到画布'}
+              </p>
               <p className="text-sm mt-2">拖拽调整位置 · 自由创作</p>
             </div>
           )}
         </div>
         
-        <div className="absolute inset-0 bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200 rounded-[3rem] opacity-30 blur-xl -z-10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200 opacity-30 blur-xl -z-10" style={{ borderRadius: `calc(${canvasBorderRadius} + 2rem)` }} />
       </div>
       
       <div className="text-center">
         <p className="text-sm text-gray-500">
           画布尺寸: {canvasSize.width} × {canvasSize.height}px
+          {isStoryMode && currentFrame && ` · 第 ${currentFrame.order + 1}/${frames.length} 格`}
         </p>
       </div>
     </div>

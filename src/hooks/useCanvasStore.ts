@@ -6,6 +6,8 @@ export type PatternType = 'dots' | 'grid' | 'lines' | 'diagonal' | 'waves' | 'zi
 export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'line' | 'ellipse' | 'star';
 export type DrawingTool = 'select' | 'rectangle' | 'circle' | 'triangle' | 'line' | 'ellipse' | 'star' | 'brush';
 export type AnimationPreset = 'none' | 'rotate' | 'bounce' | 'shake' | 'appear' | 'pulse' | 'swing' | 'float';
+export type FrameBorderStyle = 'none' | 'solid' | 'dashed' | 'dotted' | 'double' | 'comic' | 'movie';
+export type SpeechBubbleStyle = 'none' | 'round' | 'speech' | 'thought' | 'shout' | 'whisper';
 
 export interface BaseCanvasItem {
   id: string;
@@ -344,7 +346,92 @@ export interface MosaicGeneratorOptions {
   clearBeforeGenerate: boolean;
 }
 
-interface CanvasState {
+export interface FrameBorderConfig {
+  style: FrameBorderStyle;
+  color: string;
+  width: number;
+  radius: number;
+}
+
+export interface SpeechBubble {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  style: SpeechBubbleStyle;
+  fontSize: number;
+  textColor: string;
+  backgroundColor: string;
+  borderColor: string;
+  tailPosition: 'left' | 'right' | 'top' | 'bottom';
+}
+
+export interface StoryFrame {
+  id: string;
+  title: string;
+  items: CanvasItem[];
+  background: CanvasBackground;
+  border: FrameBorderConfig;
+  speechBubbles: SpeechBubble[];
+  order: number;
+}
+
+export interface StoryBoardState {
+  isStoryMode: boolean;
+  frames: StoryFrame[];
+  currentFrameId: string | null;
+  storyTitle: string;
+  showStoryTitle: boolean;
+  storyTitleStyle: {
+    fontSize: number;
+    color: string;
+    fontFamily: string;
+  };
+}
+
+export const DEFAULT_FRAME_BORDER: FrameBorderConfig = {
+  style: 'solid',
+  color: '#333333',
+  width: 3,
+  radius: 8,
+};
+
+export const DEFAULT_SPEECH_BUBBLE: Omit<SpeechBubble, 'id' | 'text' | 'x' | 'y' | 'width'> = {
+  style: 'speech',
+  fontSize: 16,
+  textColor: '#333333',
+  backgroundColor: '#FFFFFF',
+  borderColor: '#333333',
+  tailPosition: 'bottom',
+};
+
+export const DEFAULT_STORY_TITLE_STYLE = {
+  fontSize: 32,
+  color: '#333333',
+  fontFamily: 'Georgia, serif',
+};
+
+export const FRAME_BORDER_OPTIONS: { id: FrameBorderStyle; name: string; icon: string }[] = [
+  { id: 'none', name: '无边框', icon: '⬜' },
+  { id: 'solid', name: '实线边框', icon: '▢' },
+  { id: 'dashed', name: '虚线边框', icon: '▦' },
+  { id: 'dotted', name: '点线边框', icon: '▣' },
+  { id: 'double', name: '双线边框', icon: '▤' },
+  { id: 'comic', name: '漫画风格', icon: '💥' },
+  { id: 'movie', name: '电影边框', icon: '🎬' },
+];
+
+export const SPEECH_BUBBLE_OPTIONS: { id: SpeechBubbleStyle; name: string; icon: string }[] = [
+  { id: 'none', name: '无气泡', icon: '⬜' },
+  { id: 'round', name: '圆形气泡', icon: '⚪' },
+  { id: 'speech', name: '对话气泡', icon: '💬' },
+  { id: 'thought', name: '思考气泡', icon: '💭' },
+  { id: 'shout', name: '喊叫气泡', icon: '📢' },
+  { id: 'whisper', name: '低语气泡', icon: '🤫' },
+];
+
+interface CanvasState extends StoryBoardState {
   items: CanvasItem[];
   selectedId: string | null;
   history: CanvasItem[][];
@@ -397,6 +484,24 @@ interface CanvasState {
   unlockMosaicGroup: (mosaicId: string) => void;
   removeMosaicGroup: (mosaicId: string) => void;
   findMosaicIdByItemId: (itemId: string) => string | null;
+
+  toggleStoryMode: () => void;
+  setStoryMode: (enabled: boolean) => void;
+  addStoryFrame: () => void;
+  removeStoryFrame: (frameId: string) => void;
+  duplicateStoryFrame: (frameId: string) => void;
+  setCurrentStoryFrame: (frameId: string) => void;
+  reorderStoryFrames: (fromIndex: number, toIndex: number) => void;
+  updateStoryFrame: (frameId: string, updates: Partial<StoryFrame>) => void;
+  setStoryTitle: (title: string) => void;
+  toggleShowStoryTitle: () => void;
+  updateStoryTitleStyle: (updates: Partial<StoryBoardState['storyTitleStyle']>) => void;
+  updateFrameBorder: (frameId: string, border: Partial<FrameBorderConfig>) => void;
+  addSpeechBubble: (frameId: string, bubble: Omit<SpeechBubble, 'id'>) => void;
+  updateSpeechBubble: (frameId: string, bubbleId: string, updates: Partial<SpeechBubble>) => void;
+  removeSpeechBubble: (frameId: string, bubbleId: string) => void;
+  saveCurrentFrameToStory: () => void;
+  loadStoryFrameToCanvas: (frameId: string) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -412,6 +517,13 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   shapeStyle: { ...DEFAULT_SHAPE_STYLE },
   brushStyle: { ...DEFAULT_BRUSH_STYLE },
   animationSettings: { ...DEFAULT_ANIMATION_SETTINGS },
+
+  isStoryMode: false,
+  frames: [],
+  currentFrameId: null,
+  storyTitle: '我的表情故事',
+  showStoryTitle: true,
+  storyTitleStyle: { ...DEFAULT_STORY_TITLE_STYLE },
 
   addEmoji: (emoji: string) => {
     const { items, canvasSize } = get();
@@ -937,5 +1049,229 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   findMosaicIdByItemId: (itemId: string): string | null => {
     const item = get().items.find(e => e.id === itemId);
     return item?.mosaicId || null;
+  },
+
+  toggleStoryMode: () => {
+    set(state => {
+      const newIsStoryMode = !state.isStoryMode;
+      if (newIsStoryMode && state.frames.length === 0) {
+        const firstFrame: StoryFrame = {
+          id: generateId(),
+          title: '第1格',
+          items: [...state.items],
+          background: { ...state.background },
+          border: { ...DEFAULT_FRAME_BORDER },
+          speechBubbles: [],
+          order: 0,
+        };
+        return {
+          isStoryMode: newIsStoryMode,
+          frames: [firstFrame],
+          currentFrameId: firstFrame.id,
+        };
+      }
+      return { isStoryMode: newIsStoryMode };
+    });
+  },
+
+  setStoryMode: (enabled: boolean) => {
+    set(state => {
+      if (enabled && state.frames.length === 0) {
+        const firstFrame: StoryFrame = {
+          id: generateId(),
+          title: '第1格',
+          items: [...state.items],
+          background: { ...state.background },
+          border: { ...DEFAULT_FRAME_BORDER },
+          speechBubbles: [],
+          order: 0,
+        };
+        return {
+          isStoryMode: enabled,
+          frames: [firstFrame],
+          currentFrameId: firstFrame.id,
+        };
+      }
+      return { isStoryMode: enabled };
+    });
+  },
+
+  addStoryFrame: () => {
+    set(state => {
+      const newOrder = state.frames.length;
+      const newFrame: StoryFrame = {
+        id: generateId(),
+        title: `第${newOrder + 1}格`,
+        items: [],
+        background: { ...DEFAULT_BACKGROUND },
+        border: { ...DEFAULT_FRAME_BORDER },
+        speechBubbles: [],
+        order: newOrder,
+      };
+      const newFrames = [...state.frames, newFrame];
+      return {
+        frames: newFrames,
+        currentFrameId: newFrame.id,
+        items: [],
+        background: { ...DEFAULT_BACKGROUND },
+        history: [[]],
+        historyIndex: 0,
+      };
+    });
+  },
+
+  removeStoryFrame: (frameId: string) => {
+    set(state => {
+      const newFrames = state.frames.filter(f => f.id !== frameId)
+        .map((f, idx) => ({ ...f, order: idx, title: `第${idx + 1}格` }));
+      const newCurrentId = state.currentFrameId === frameId
+        ? (newFrames.length > 0 ? newFrames[0].id : null)
+        : state.currentFrameId;
+      const currentFrame = newFrames.find(f => f.id === newCurrentId);
+      return {
+        frames: newFrames,
+        currentFrameId: newCurrentId,
+        items: currentFrame ? currentFrame.items : [],
+        background: currentFrame ? currentFrame.background : DEFAULT_BACKGROUND,
+        history: currentFrame ? [currentFrame.items] : [[]],
+        historyIndex: 0,
+      };
+    });
+  },
+
+  duplicateStoryFrame: (frameId: string) => {
+    set(state => {
+      const frame = state.frames.find(f => f.id === frameId);
+      if (!frame) return state;
+      const newOrder = state.frames.length;
+      const newFrame: StoryFrame = {
+        ...frame,
+        id: generateId(),
+        title: `${frame.title} 副本`,
+        order: newOrder,
+        items: frame.items.map(item => ({ ...item, id: generateId() })),
+        speechBubbles: frame.speechBubbles.map(b => ({ ...b, id: generateId() })),
+      };
+      const newFrames = [...state.frames, newFrame];
+      return {
+        frames: newFrames,
+        currentFrameId: newFrame.id,
+        items: newFrame.items,
+        background: newFrame.background,
+        history: [newFrame.items],
+        historyIndex: 0,
+      };
+    });
+  },
+
+  setCurrentStoryFrame: (frameId: string) => {
+    set(state => {
+      const frame = state.frames.find(f => f.id === frameId);
+      if (!frame) return state;
+      return {
+        currentFrameId: frameId,
+        items: [...frame.items],
+        background: { ...frame.background },
+        history: [frame.items],
+        historyIndex: 0,
+      };
+    });
+  },
+
+  reorderStoryFrames: (fromIndex: number, toIndex: number) => {
+    set(state => {
+      const sorted = [...state.frames].sort((a, b) => a.order - b.order);
+      const [removed] = sorted.splice(fromIndex, 1);
+      sorted.splice(toIndex, 0, removed);
+      const newFrames = sorted.map((f, idx) => ({ ...f, order: idx, title: `第${idx + 1}格` }));
+      return { frames: newFrames };
+    });
+  },
+
+  updateStoryFrame: (frameId: string, updates: Partial<StoryFrame>) => {
+    set(state => ({
+      frames: state.frames.map(f =>
+        f.id === frameId ? { ...f, ...updates } : f
+      ),
+    }));
+  },
+
+  setStoryTitle: (title: string) => {
+    set({ storyTitle: title });
+  },
+
+  toggleShowStoryTitle: () => {
+    set(state => ({ showStoryTitle: !state.showStoryTitle }));
+  },
+
+  updateStoryTitleStyle: (updates: Partial<StoryBoardState['storyTitleStyle']>) => {
+    set(state => ({
+      storyTitleStyle: { ...state.storyTitleStyle, ...updates },
+    }));
+  },
+
+  updateFrameBorder: (frameId: string, border: Partial<FrameBorderConfig>) => {
+    set(state => ({
+      frames: state.frames.map(f =>
+        f.id === frameId ? { ...f, border: { ...f.border, ...border } } : f
+      ),
+    }));
+  },
+
+  addSpeechBubble: (frameId: string, bubble: Omit<SpeechBubble, 'id'>) => {
+    set(state => ({
+      frames: state.frames.map(f =>
+        f.id === frameId
+          ? { ...f, speechBubbles: [...f.speechBubbles, { ...bubble, id: generateId() }] }
+          : f
+      ),
+    }));
+  },
+
+  updateSpeechBubble: (frameId: string, bubbleId: string, updates: Partial<SpeechBubble>) => {
+    set(state => ({
+      frames: state.frames.map(f =>
+        f.id === frameId
+          ? {
+              ...f,
+              speechBubbles: f.speechBubbles.map(b =>
+                b.id === bubbleId ? { ...b, ...updates } : b
+              ),
+            }
+          : f
+      ),
+    }));
+  },
+
+  removeSpeechBubble: (frameId: string, bubbleId: string) => {
+    set(state => ({
+      frames: state.frames.map(f =>
+        f.id === frameId
+          ? { ...f, speechBubbles: f.speechBubbles.filter(b => b.id !== bubbleId) }
+          : f
+      ),
+    }));
+  },
+
+  saveCurrentFrameToStory: () => {
+    const { currentFrameId, items, background, frames } = get();
+    if (!currentFrameId) return;
+    set({
+      frames: frames.map(f =>
+        f.id === currentFrameId ? { ...f, items: [...items], background: { ...background } } : f
+      ),
+    });
+  },
+
+  loadStoryFrameToCanvas: (frameId: string) => {
+    const frame = get().frames.find(f => f.id === frameId);
+    if (!frame) return;
+    set({
+      currentFrameId: frameId,
+      items: [...frame.items],
+      background: { ...frame.background },
+      history: [frame.items],
+      historyIndex: 0,
+    });
   },
 }));
